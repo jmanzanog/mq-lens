@@ -41,7 +41,7 @@ type Config struct {
 
 func Load() Config {
 	virtualTopicMode := envBool("LENS_VIRTUAL_TOPIC_MODE", false)
-	propertiesAllowlist := envList("LENS_PROPERTIES_ALLOWLIST", "correlation-id,reply-to,type,persistent,priority,timestamp,expires,eventId,bbEventType,sourceEventTopic")
+	propertiesAllowlist := envList("LENS_PROPERTIES_ALLOWLIST", "correlation-id,reply-to,type,persistent,priority,timestamp,expires,eventId,bbEventType,sourceEventTopic,LENS_OriginalDestination,LENS_DestinationType")
 
 	return Config{
 		AppName:             "MQ Lens",
@@ -61,7 +61,7 @@ func Load() Config {
 		STOMPReconnectMax:   envDuration("LENS_STOMP_RECONNECT_MAX", 30*time.Second),
 		STOMPSubscription:   env("LENS_STOMP_SUBSCRIPTION_ACK", "auto"),
 		AuditPrefix:         env("LENS_AUDIT_PREFIX", "LENS.AUDIT."),
-		AuditQueues:         envList("LENS_AUDIT_QUEUES", "ORDER.CREATED,PAYMENT.EVENTS"),
+		AuditQueues:         envList("LENS_AUDIT_QUEUES", "ALL"),
 		AuditTopics:         envList("LENS_AUDIT_TOPICS", ""),
 		VirtualTopicMode:    virtualTopicMode,
 		PropertiesAllowlist: propertiesAllowlist,

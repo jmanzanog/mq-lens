@@ -1,0 +1,5 @@
+*
+!activemq-plugin/
+!activemq-plugin/**
+!docker/activemq/
+!docker/activemq/**

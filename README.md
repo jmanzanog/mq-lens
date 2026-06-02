@@ -66,44 +66,63 @@ LENS_MAX_BODY_BYTES=262144
 LENS_MAX_MESSAGES=10000
 LENS_RETENTION_HOURS=24
 LENS_ENABLE_REDACTION=true
-LENS_VIRTUAL_TOPIC_MODE=true
 ```
 
-## Virtual Topics & Custom Auditing
+## The "Magic" Broker (ActiveMQ Plugin)
 
-MQ Lens can be configured to intercept standard queues or ActiveMQ Virtual Topics.
+The easiest way to use MQ Lens is by using our opinionated ActiveMQ image which comes with the **MQ Lens Broker Plugin** pre-installed. 
+This plugin automatically intercepts all messages sent to any business queue or Virtual Topic, and asynchronously routes a copy to `LENS.AUDIT.ALL` with the `LENS_OriginalDestination` header.
+This eliminates the need to configure `activemq.xml` composites or manage `LENS_AUDIT_QUEUES`.
 
-1. **Virtual Topic Mode**
-   By setting `LENS_VIRTUAL_TOPIC_MODE=true`, the system assumes your audit destinations are derived from `VirtualTopic.<destination>` logic.
-2. **Configuration Generator**
-   Because Virtual Topics require special `compositeTopic` forwarding to audit queues, you can generate the required `activemq.xml` snippet using the CLI. This will read your `LENS_AUDIT_QUEUES` and generate the proper composites:
-   ```sh
-   mq-lens generate-activemq-config --output ./activemq-audit.xml
-   ```
-3. **Sniff Mode Limitations**
-   Directly sniffing `Consumer.*` business queues is discouraged and not officially supported because taking messages out of these queues would steal them from the real business consumers. Always use the generated audit composites.
-
-## Sidecar Integration (Docker Compose)
-
-You can attach MQ Lens to an existing ActiveMQ container in your team's `docker-compose.yaml` without replacing your entire stack.
+### Docker Compose Example
 
 ```yaml
 services:
+  # The Magic Broker
+  message-broker:
+    build: 
+      context: ./
+      dockerfile: docker/activemq/Dockerfile
+    # Or use the pre-built image: image: ghcr.io/jmanzanog/mq-lens-activemq:latest
+    ports:
+      - "8161:8161"
+      - "61616:61616"
+      - "61613:61613"
+
+  # MQ Lens Sidecar
   mq-lens:
     image: ghcr.io/jmanzanog/mq-lens:latest
     ports:
-      - "8088:8080" # UI port (change left side if 8088 conflicts)
+      - "8088:8080" # UI port
     environment:
-      - LENS_VIRTUAL_TOPIC_MODE=true
-      - LENS_AUDIT_QUEUES=ORDER.CREATED,PAYMENT.EVENTS
+      # By default LENS_AUDIT_QUEUES=ALL, so it connects to LENS.AUDIT.ALL automatically
       - ACTIVEMQ_STOMP_ADDR=message-broker:61613
       - ACTIVEMQ_JOLOKIA_URL=http://message-broker:8161/api/jolokia
-      - ACTIVEMQ_STOMP_USER=admin
-      - ACTIVEMQ_STOMP_PASSWORD=admin
     depends_on:
       - message-broker
 ```
-Ensure your broker exposes STOMP (61613) and Jolokia (8161).
+
+## Manual Configuration (Without Plugin)
+
+If you cannot replace your ActiveMQ image, you can still manually configure composites:
+
+1. **Virtual Topic Mode**
+   By setting `LENS_VIRTUAL_TOPIC_MODE=true` and `LENS_AUDIT_QUEUES=Foo,Bar`, the system assumes your audit destinations are derived from `VirtualTopic.<destination>`.
+2. **Configuration Generator**
+   Generate the required `activemq.xml` snippet using the CLI:
+   ```sh
+   mq-lens generate-activemq-config --output ./activemq-audit.xml
+   ```
+
+### Migrating from manual composite setup
+If you are upgrading from a previous version where you used `LENS_AUDIT_QUEUES=Foo,Bar` manually:
+1. Switch your `message-broker` image to `ghcr.io/jmanzanog/mq-lens-activemq:latest` (or build it locally).
+2. Remove the `LENS_AUDIT_QUEUES` configuration from `mq-lens` (it now defaults to `ALL`).
+3. You can safely remove your custom `activemq-audit.xml` volume mount.
+
+### Important Notes
+* **Redaction in Broker**: The plugin copies messages exactly as they are. This means the `LENS.AUDIT.ALL` queue in ActiveMQ stores the raw, unredacted message body. MQ Lens will redact the message upon reading it (if `LENS_ENABLE_REDACTION=true`), but the broker queue must be secured at the ActiveMQ level.
+* **Reserved Properties**: The plugin uses the `LENS_` namespace for properties (e.g., `LENS_OriginalDestination`). Ensure your application does not use custom properties starting with `LENS_`.
 
 ## API
 

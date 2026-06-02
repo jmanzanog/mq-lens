@@ -96,3 +96,19 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha }}
             org.opencontainers.image.version=${{ steps.meta.outputs.version_tag }}
+
+      - name: Build and push ActiveMQ Broker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/activemq/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}-activemq:${{ steps.meta.outputs.version_tag }}
+            ${{ steps.meta.outputs.image }}-activemq:latest
+            ${{ steps.meta.outputs.image }}-activemq:main
+            ${{ steps.meta.outputs.image }}-activemq:sha-${{ steps.meta.outputs.short_sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version_tag }}

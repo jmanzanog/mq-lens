@@ -47,3 +47,14 @@ jobs:
 
       - name: Build Go
         run: go build -buildvcs=false -o /tmp/mq-lens ./cmd/mq-lens
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+          cache: 'maven'
+
+      - name: Test ActiveMQ Plugin
+        working-directory: activemq-plugin
+        run: mvn verify

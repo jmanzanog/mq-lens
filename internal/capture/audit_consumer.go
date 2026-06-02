@@ -158,14 +158,26 @@ func (c *AuditConsumer) toCapturedMessage(msg *gostomp.Message, auditName, origi
 			c.logger.Info("sensitive headers or properties redacted")
 		}
 	}
+	actualOriginal := original
+	if val, ok := properties["LENS_OriginalDestination"]; ok && val != "" {
+		actualOriginal = val
+	}
+
+	msgType := domain.DestinationQueue
+	if val, ok := properties["LENS_DestinationType"]; ok {
+		if val == "Topic" {
+			msgType = domain.DestinationTopic
+		}
+	}
+
 	body := ProcessBody(msg.Body, c.cfg.MaxBodyBytes, c.cfg.Redaction)
 	return domain.CapturedMessage{
 		ID:                  uuid.NewString(),
 		CapturedAt:          time.Now().UTC(),
 		Broker:              c.cfg.STOMPAddr,
-		OriginalDestination: original,
+		OriginalDestination: actualOriginal,
 		AuditDestination:    auditName,
-		DestinationType:     domain.DestinationQueue,
+		DestinationType:     msgType,
 		MessageID:           firstNonEmpty(msg.Header.Get("message-id"), msg.Header.Get("JMSMessageID")),
 		CorrelationID:       firstNonEmpty(msg.Header.Get("correlation-id"), msg.Header.Get("JMSCorrelationID")),
 		ReplyTo:             msg.Header.Get("reply-to"),
