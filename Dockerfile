@@ -1,5 +1,5 @@
 # frontend build
-FROM node:22-alpine AS frontend
+FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend
 WORKDIR /web
 COPY web/package*.json ./
 RUN npm ci
@@ -7,7 +7,9 @@ COPY web ./
 RUN npm run build
 
 # backend build
-FROM golang:1.24-alpine AS backend
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS backend
+ARG TARGETOS
+ARG TARGETARCH
 WORKDIR /app
 RUN apk add --no-cache ca-certificates
 COPY go.mod go.sum* ./
@@ -15,7 +17,7 @@ RUN go mod download
 COPY . .
 RUN rm -rf internal/ui/dist && mkdir -p internal/ui/dist
 COPY --from=frontend /web/dist ./internal/ui/dist
-RUN CGO_ENABLED=0 GOOS=linux go build -buildvcs=false -o /out/mq-lens ./cmd/mq-lens
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -buildvcs=false -o /out/mq-lens ./cmd/mq-lens
 RUN mkdir -p /out/data && chown -R 65532:65532 /out/data
 
 # runtime

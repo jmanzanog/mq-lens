@@ -1,5 +1,5 @@
 # Stage 1: Build the plugin
-FROM maven:3.9-eclipse-temurin-11 AS builder
+FROM --platform=$BUILDPLATFORM maven:3.9-eclipse-temurin-11 AS builder
 WORKDIR /build
 COPY activemq-plugin/pom.xml .
 COPY activemq-plugin/src ./src
