@@ -444,6 +444,7 @@
       <div class="notice">{error}</div>
     {/if}
 
+    {#key view}
     {#if view === 'dashboard'}
       <section class="metrics">
         <article><span>Messages</span><strong>{messages.length}</strong></article>
@@ -537,6 +538,7 @@
         </div>
       </section>
     {/if}
+    {/key}
   </section>
 </main>
 
