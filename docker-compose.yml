@@ -1,6 +1,6 @@
 services:
   activemq:
-    image: apache/activemq-classic:5.19.7
+    image: apache/activemq:5.19.7
     container_name: activemq-classic
     ports:
       - "127.0.0.1:61616:61616"
@@ -8,9 +8,10 @@ services:
       - "127.0.0.1:8161:8161"
     volumes:
       - ./activemq/conf/activemq.xml:/opt/apache-activemq/conf/activemq.xml:ro
+      - ./activemq/conf/jetty.xml:/opt/apache-activemq/conf/jetty.xml:ro
       - activemq-data:/opt/apache-activemq/data
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8161/api/jolokia/version"]
+      test: ["CMD-SHELL", "timeout 3 bash -c '</dev/tcp/localhost/61613'"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -20,6 +21,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: mq-lens
+    user: "0:0"
     depends_on:
       activemq:
         condition: service_healthy

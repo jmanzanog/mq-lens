@@ -24,6 +24,9 @@
   let topologyElement = $state<HTMLDivElement | null>(null);
   let topologyInstance: Core | null = null;
 
+  type GraphNode = Topology['nodes'][number];
+  type GraphEdge = Topology['edges'][number];
+
   const queueCount = $derived(destinations.filter((item) => item.type === 'queue').length);
   const topicCount = $derived(destinations.filter((item) => item.type === 'topic').length);
   const consumerCount = $derived(destinations.reduce((sum, item) => sum + item.consumerCount, 0));
@@ -100,65 +103,269 @@
 
   $effect(() => {
     if (view !== 'topology' || !topologyElement) {
+      topologyInstance?.destroy();
+      topologyInstance = null;
       return;
     }
-    topologyInstance?.destroy();
+    if (topologyInstance) {
+      return;
+    }
     topologyInstance = cytoscape({
       container: topologyElement,
-      elements: topologyElements(topology),
+      elements: [],
       style: [
         {
           selector: 'node',
           style: {
             label: 'data(label)',
-            'background-color': '#fbfcf8',
-            'border-width': 1,
-            'border-color': '#17201b',
+            'background-color': '#fffdf3',
+            'border-width': 2,
+            'border-color': '#253028',
             color: '#17201b',
-            'font-size': 11,
+            'font-family': 'Aptos, Segoe UI, sans-serif',
+            'font-size': 12,
+            'font-weight': 700,
             'text-valign': 'center',
             'text-halign': 'center',
-            width: 118,
-            height: 48,
-            shape: 'round-rectangle'
+            'text-wrap': 'wrap',
+            'text-max-width': 148,
+            width: 'data(width)',
+            height: 'data(height)',
+            shape: 'round-rectangle',
+            'overlay-opacity': 0,
+            'transition-property': 'background-color, border-color, width',
+            'transition-duration': '160ms'
           }
         },
-        { selector: 'node[type = "broker"]', style: { 'background-color': '#d5e8d0', width: 138 } },
-        { selector: 'node[type = "queue"]', style: { 'background-color': '#f1e7ba' } },
-        { selector: 'node[type = "topic"]', style: { 'background-color': '#d8e7ef' } },
-        { selector: 'node[type = "inspector"]', style: { 'background-color': '#17201b', color: '#f7f8f3' } },
+        {
+          selector: 'node[role = "cluster"]',
+          style: {
+            label: 'data(label)',
+            'background-color': '#eef1ec',
+            'background-opacity': 0.42,
+            'border-color': '#c3cbc1',
+            'border-width': 1,
+            'border-style': 'dashed',
+            color: '#667266',
+            'font-size': 11,
+            'font-weight': 800,
+            'text-transform': 'uppercase',
+            'text-valign': 'top',
+            'text-halign': 'center',
+            'text-margin-y': -8,
+            padding: 26
+          }
+        },
+        { selector: 'node[type = "broker"]', style: { 'background-color': '#d5e8d0', width: 150, height: 54 } },
+        { selector: 'node[type = "queue"]', style: { 'background-color': '#f3e5a6', 'border-color': '#5c4f17' } },
+        { selector: 'node[type = "audit"]', style: { 'background-color': '#ffe4d8', 'border-color': '#a34f3c' } },
+        { selector: 'node[type = "topic"]', style: { 'background-color': '#d8e7ef', 'border-color': '#35596a' } },
+        { selector: 'node[type = "consumer"]', style: { 'background-color': '#f8faf5', 'border-color': '#526055' } },
+        { selector: 'node[type = "inspector"]', style: { 'background-color': '#17201b', color: '#f7f8f3', width: 150, height: 56 } },
         {
           selector: 'edge',
           style: {
-            width: 2,
+            width: 2.2,
             'line-color': '#7d897e',
             'target-arrow-color': '#7d897e',
             'target-arrow-shape': 'triangle',
-            'curve-style': 'bezier',
-            label: 'data(type)',
-            'font-size': 9,
+            'curve-style': 'taxi',
+            'taxi-direction': 'rightward',
+            'taxi-turn-min-distance': 18,
+            label: 'data(label)',
+            'font-size': 10,
+            'font-weight': 700,
             color: '#667266',
-            'text-background-color': '#eef1ec',
-            'text-background-opacity': 1
+            'text-background-color': '#fbfcf8',
+            'text-background-opacity': 0.92,
+            'text-background-padding': 3
           }
         },
-        { selector: 'edge[type = "audit-copy"]', style: { 'line-style': 'dashed', 'line-color': '#c55d4b', 'target-arrow-color': '#c55d4b' } }
+        {
+          selector: 'edge[type = "audit-copy"]',
+          style: {
+            'line-style': 'dashed',
+            'line-color': '#c55d4b',
+            'target-arrow-color': '#c55d4b',
+            color: '#9c4b3a'
+          }
+        },
+        { selector: 'edge[type = "observes"]', style: { width: 2.8, 'line-color': '#17201b', 'target-arrow-color': '#17201b', color: '#17201b' } },
+        {
+          selector: 'edge[type = "owns"]',
+          style: {
+            width: 1.4,
+            opacity: 0.28,
+            label: '',
+            'line-color': '#9aa59b',
+            'target-arrow-color': '#9aa59b'
+          }
+        },
+        {
+          selector: 'edge[type = "consumes"]',
+          style: {
+            width: 1.7,
+            opacity: 0.55,
+            label: '',
+            'line-color': '#8d9a8f',
+            'target-arrow-color': '#8d9a8f'
+          }
+        }
       ],
-      layout: { name: 'breadthfirst', directed: true, padding: 28, spacingFactor: 1.35 }
+      layout: { name: 'preset', padding: 42, fit: true },
+      minZoom: 0.35,
+      maxZoom: 1.8,
+      wheelSensitivity: 0.18
     });
+    queueMicrotask(() => syncTopologyGraph(topology));
     return () => {
       topologyInstance?.destroy();
       topologyInstance = null;
     };
   });
 
+  $effect(() => {
+    if (view !== 'topology' || !topologyInstance) {
+      return;
+    }
+    syncTopologyGraph(topology);
+  });
+
+  function syncTopologyGraph(topology: Topology) {
+    if (!topologyInstance) {
+      return;
+    }
+    const nextElements = topologyElements(topology);
+    const nextIds = new Set(nextElements.map((element) => String(element.data?.id)));
+
+    topologyInstance.batch(() => {
+      topologyInstance?.elements().forEach((element) => {
+        if (!nextIds.has(element.id())) {
+          element.animate({ style: { opacity: 0 } }, { duration: 140, complete: () => element.remove() });
+        }
+      });
+
+      for (const element of nextElements) {
+        const id = String(element.data?.id);
+        const existing = topologyInstance?.getElementById(id);
+        if (existing?.length) {
+          existing.data(element.data ?? {});
+          if (element.position && existing.isNode()) {
+            existing.animate({ position: element.position }, { duration: 420, easing: 'ease-in-out' });
+          }
+          continue;
+        }
+
+        const added = topologyInstance?.add(element);
+        added?.style('opacity', 0);
+        added?.animate({ style: { opacity: 1 } }, { duration: 220 });
+      }
+    });
+  }
+
   function topologyElements(topology: Topology): ElementDefinition[] {
-    return [
-      ...topology.nodes.map((node) => ({ data: { id: node.id, label: node.label, type: node.type } })),
-      ...topology.edges.map((edge, index) => ({
-        data: { id: `edge:${index}:${edge.source}:${edge.target}`, source: edge.source, target: edge.target, type: edge.type }
-      }))
+    const columns = topologyColumns(topology.nodes);
+    const elements: ElementDefinition[] = [
+      { data: { id: 'cluster:broker', role: 'cluster', label: 'Broker' } },
+      { data: { id: 'cluster:business', role: 'cluster', label: 'Business queues' } },
+      { data: { id: 'cluster:audit', role: 'cluster', label: 'Audit mirror' } },
+      { data: { id: 'cluster:advisory', role: 'cluster', label: 'Advisory topics' } },
+      { data: { id: 'cluster:runtime', role: 'cluster', label: 'Runtime' } }
     ];
+
+    for (const column of columns) {
+      const yStart = 120 - ((column.nodes.length - 1) * column.gap) / 2;
+      column.nodes.forEach((node, index) => {
+        const fullLabel = node.label;
+        const shortLabel = compactTopologyLabel(node);
+        elements.push({
+          data: {
+            id: node.id,
+            label: shortLabel,
+            shortLabel,
+            fullLabel,
+            type: visualNodeType(node),
+            parent: column.cluster,
+            width: nodeWidth(node),
+            height: node.type === 'consumer' ? 46 : 54
+          },
+          position: { x: column.x, y: yStart + index * column.gap }
+        });
+      });
+    }
+
+    elements.push(
+      ...topology.edges.map((edge, index) => ({
+        data: {
+          id: `edge:${index}:${edge.source}:${edge.target}`,
+          source: edge.source,
+          target: edge.target,
+          type: edge.type,
+          label: edgeLabel(edge)
+        }
+      }))
+    );
+    return elements;
+  }
+
+  function topologyColumns(nodes: GraphNode[]) {
+    const broker = nodes.filter((node) => node.type === 'broker');
+    const business = nodes.filter((node) => node.type === 'queue' && !isAuditQueue(node));
+    const audit = nodes.filter((node) => node.type === 'queue' && isAuditQueue(node));
+    const advisory = nodes.filter((node) => node.type === 'topic');
+    const runtime = nodes.filter((node) => node.type === 'inspector' || node.type === 'consumer');
+    return [
+      { cluster: 'cluster:broker', x: 80, gap: 86, nodes: broker },
+      { cluster: 'cluster:business', x: 330, gap: 86, nodes: business },
+      { cluster: 'cluster:audit', x: 610, gap: 86, nodes: audit },
+      { cluster: 'cluster:advisory', x: 915, gap: 84, nodes: advisory },
+      { cluster: 'cluster:runtime', x: 1255, gap: 94, nodes: runtime }
+    ];
+  }
+
+  function visualNodeType(node: GraphNode) {
+    if (isAuditQueue(node)) return 'audit';
+    return node.type;
+  }
+
+  function isAuditQueue(node: GraphNode) {
+    return node.type === 'queue' && node.label.startsWith('LENS.AUDIT.');
+  }
+
+  function compactTopologyLabel(node: GraphNode) {
+    if (node.type === 'consumer') return 'Consumers';
+    if (node.type === 'inspector') return 'MQ Lens';
+    if (node.label.startsWith('ActiveMQ.Advisory.Consumer.Queue.')) {
+      return `Consumer\n${compactDestination(node.label.replace('ActiveMQ.Advisory.Consumer.Queue.', ''))}`;
+    }
+    if (node.label.startsWith('LENS.AUDIT.')) return node.label.replace('LENS.AUDIT.', 'AUDIT\n');
+    if (node.label.startsWith('ActiveMQ.Advisory.')) return node.label.replace('ActiveMQ.Advisory.', 'Advisory\n');
+    return node.label.length > 24 ? `${node.label.slice(0, 21)}...` : node.label;
+  }
+
+  function compactDestination(value: string) {
+    const normalized = value.replace('LENS.AUDIT.', 'AUDIT.');
+    return normalized.length > 22 ? `${normalized.slice(0, 19)}...` : normalized;
+  }
+
+  function nodeWidth(node: GraphNode) {
+    if (node.type === 'broker' || node.type === 'inspector') return 150;
+    if (node.type === 'topic') return 190;
+    if (isAuditQueue(node)) return 172;
+    return 156;
+  }
+
+  function edgeLabel(edge: GraphEdge) {
+    switch (edge.type) {
+      case 'audit-copy':
+        return 'audit copy';
+      case 'observes':
+        return 'observes';
+      case 'consumes':
+        return 'consumes';
+      default:
+        return '';
+    }
   }
 </script>
 
@@ -244,6 +451,16 @@
         {@render MessageDetail(selected)}
       </section>
     {:else if view === 'topology'}
+      <section class="topology-note">
+        <div>
+          <strong>Live topology</strong>
+          <span>Updated from Jolokia polling and ActiveMQ advisory events.</span>
+        </div>
+        <button class="help-button" aria-label="Explain topology updates">?</button>
+        <div class="help-popover" role="tooltip">
+          Advisory topics are broker metadata. ActiveMQ emits them when consumers, producers, queues or connections change. MQ Lens listens to them, so this graph can update while the broker is active.
+        </div>
+      </section>
       {@render TopologyGraph(topology)}
     {:else}
       <section class="panel">

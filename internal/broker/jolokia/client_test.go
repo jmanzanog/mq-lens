@@ -3,6 +3,7 @@ package jolokia
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -13,12 +14,18 @@ import (
 
 func TestSnapshotParsesBrokerAndDestinations(t *testing.T) {
 	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
-		path := r.URL.Path
+		if r.Method != http.MethodPost {
+			t.Fatalf("method=%s, want POST", r.Method)
+		}
+		if r.Header.Get("Origin") != "http://jolokia" {
+			t.Fatalf("Origin=%q, want http://jolokia", r.Header.Get("Origin"))
+		}
+		request := readRequest(t, r)
 		var body string
 		switch {
-		case strings.Contains(path, "destinationType=Queue") || strings.Contains(path, "destinationType%3DQueue"):
+		case strings.Contains(request.MBean, "destinationType=Queue"):
 			body = `{"status":200,"value":{"org.apache.activemq:type=Broker,brokerName=localhost,destinationType=Queue,destinationName=ORDER.CREATED":{"Name":"ORDER.CREATED","QueueSize":2,"EnqueueCount":5,"DequeueCount":3,"DispatchCount":3,"ConsumerCount":1,"ProducerCount":1,"ExpiredCount":0}}}`
-		case strings.Contains(path, "destinationType=Topic") || strings.Contains(path, "destinationType%3DTopic"):
+		case strings.Contains(request.MBean, "destinationType=Topic"):
 			body = `{"status":200,"value":{"org.apache.activemq:type=Broker,brokerName=localhost,destinationType=Topic,destinationName=PAYMENT.EVENTS":{"Name":"PAYMENT.EVENTS","EnqueueCount":7,"ConsumerCount":2}}}`
 		default:
 			body = `{"status":200,"value":{"org.apache.activemq:type=Broker,brokerName=localhost":{"BrokerName":"localhost","BrokerVersion":"5.19.7","Uptime":"1 hour","MemoryPercentUsage":10,"StorePercentUsage":20,"TempPercentUsage":30}}}`
@@ -64,6 +71,23 @@ func assertSnapshotUnavailable(t *testing.T, snapshot domain.BrokerSnapshot) {
 	if snapshot.Error == "" {
 		t.Fatalf("expected error message")
 	}
+}
+
+type jolokiaRequest struct {
+	Type  string `json:"type"`
+	MBean string `json:"mbean"`
+}
+
+func readRequest(t *testing.T, req *http.Request) jolokiaRequest {
+	t.Helper()
+	var out jolokiaRequest
+	if err := json.NewDecoder(req.Body).Decode(&out); err != nil {
+		t.Fatalf("decode request body: %v", err)
+	}
+	if out.Type != "read" {
+		t.Fatalf("request type=%q, want read", out.Type)
+	}
+	return out
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)

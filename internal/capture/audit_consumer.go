@@ -72,7 +72,12 @@ func (c *AuditConsumer) Run(ctx context.Context) {
 }
 
 func (c *AuditConsumer) runOnce(ctx context.Context) (bool, error) {
-	conn, err := gostomp.Dial("tcp", c.cfg.STOMPAddr, gostomp.ConnOpt.Login(c.cfg.STOMPUser, c.cfg.STOMPPassword))
+	conn, err := gostomp.Dial(
+		"tcp",
+		c.cfg.STOMPAddr,
+		gostomp.ConnOpt.Login(c.cfg.STOMPUser, c.cfg.STOMPPassword),
+		gostomp.ConnOpt.HeartBeat(5*time.Second, 5*time.Second),
+	)
 	if err != nil {
 		return false, err
 	}

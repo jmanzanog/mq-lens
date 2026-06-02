@@ -54,7 +54,12 @@ func (m *Monitor) Run(ctx context.Context) {
 }
 
 func (m *Monitor) runOnce(ctx context.Context) (bool, error) {
-	conn, err := gostomp.Dial("tcp", m.cfg.STOMPAddr, gostomp.ConnOpt.Login(m.cfg.STOMPUser, m.cfg.STOMPPassword))
+	conn, err := gostomp.Dial(
+		"tcp",
+		m.cfg.STOMPAddr,
+		gostomp.ConnOpt.Login(m.cfg.STOMPUser, m.cfg.STOMPPassword),
+		gostomp.ConnOpt.HeartBeat(5*time.Second, 5*time.Second),
+	)
 	if err != nil {
 		return false, err
 	}

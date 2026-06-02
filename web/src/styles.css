@@ -294,14 +294,75 @@ pre {
   padding: 12px;
 }
 
+.topology-note {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  color: #667266;
+  font-size: 13px;
+}
+
+.topology-note strong {
+  display: block;
+  color: #17201b;
+  font-size: 14px;
+}
+
+.topology-note span {
+  display: block;
+}
+
+.help-button {
+  width: 26px;
+  min-height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  border-color: #c3cbc1;
+  color: #667266;
+  background: #fbfcf8;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.help-popover {
+  position: absolute;
+  z-index: 5;
+  left: calc(100% + 10px);
+  top: 0;
+  width: min(360px, 70vw);
+  padding: 12px 14px;
+  border: 1px solid #c3cbc1;
+  border-radius: 10px;
+  background: #17201b;
+  color: #f7f8f3;
+  box-shadow: 0 18px 38px rgba(23, 32, 27, 0.18);
+  line-height: 1.4;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.help-button:hover + .help-popover,
+.help-button:focus-visible + .help-popover {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .graph-panel {
-  min-height: 620px;
+  min-height: 700px;
+  overflow: auto;
+  background:
+    linear-gradient(90deg, rgba(126, 163, 123, 0.08) 1px, transparent 1px) 0 0 / 240px 100%,
+    linear-gradient(180deg, #fbfcf8 0%, #f6f8f2 100%);
 }
 
 .cy-graph {
-  width: 100%;
-  height: min(68vh, 620px);
-  min-height: 520px;
+  width: max(100%, 1450px);
+  height: min(74vh, 760px);
+  min-height: 640px;
 }
 
 @media (max-width: 820px) {

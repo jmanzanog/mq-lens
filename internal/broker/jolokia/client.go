@@ -1,6 +1,7 @@
 package jolokia
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -97,10 +98,20 @@ func (c *Client) readDestinations(ctx context.Context, kind domain.DestinationTy
 }
 
 func (c *Client) read(ctx context.Context, mbean string) (response, error) {
-	endpoint := c.baseURL + "/read/" + url.PathEscape(mbean)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	payload, err := json.Marshal(map[string]string{
+		"type":  "read",
+		"mbean": mbean,
+	})
 	if err != nil {
 		return response{}, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL, bytes.NewReader(payload))
+	if err != nil {
+		return response{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if origin := c.origin(); origin != "" {
+		req.Header.Set("Origin", origin)
 	}
 	if c.user != "" || c.password != "" {
 		req.SetBasicAuth(c.user, c.password)
@@ -121,6 +132,14 @@ func (c *Client) read(ctx context.Context, mbean string) (response, error) {
 		return response{}, fmt.Errorf("jolokia status %d", out.Status)
 	}
 	return out, nil
+}
+
+func (c *Client) origin() string {
+	parsed, err := url.Parse(c.baseURL)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return ""
+	}
+	return parsed.Scheme + "://" + parsed.Host
 }
 
 type response struct {

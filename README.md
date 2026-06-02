@@ -43,6 +43,8 @@ chmod +x scripts/send-test-message.sh
 ./scripts/send-test-message.sh ORDER.CREATED
 ```
 
+The script uses local `nc` when available. If `nc` is not installed, it falls back to the running `activemq-classic` Docker container.
+
 ActiveMQ copies the message from `ORDER.CREATED` to `LENS.AUDIT.ORDER.CREATED`. MQ Lens consumes only the audit copy.
 
 ## Configuration
@@ -126,4 +128,4 @@ When enabled, the Settings view can send a JSON message to a configured destinat
 - If STOMP is disconnected, verify port `61613` and credentials.
 - If no bodies appear, verify `activemq/conf/activemq.xml` contains composite queues for each audited destination.
 - If topology does not live-update, Jolokia polling still refreshes snapshots; advisory topics are best-effort.
-- If `scripts/send-test-message.sh` fails, install `nc` or use any STOMP-capable client.
+- If `scripts/send-test-message.sh` fails, verify Docker Compose is running or install `nc` and retry.
