@@ -2,6 +2,7 @@ package advisory
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -65,32 +66,38 @@ func (m *Monitor) runOnce(ctx context.Context) (bool, error) {
 	}
 	defer func() { _ = conn.Disconnect() }()
 
+	errCh := make(chan error, len(m.cfg.AdvisoryTopics))
 	for _, topic := range m.cfg.AdvisoryTopics {
 		destination := brokerstomp.STOMPDestination(domain.DestinationTopic, topic)
 		sub, err := conn.Subscribe(destination, gostomp.AckAuto)
 		if err != nil {
 			return true, err
 		}
-		go m.consume(ctx, sub, topic)
+		go func(t string) {
+			errCh <- m.consume(ctx, sub, t)
+		}(topic)
 		m.logger.Info("subscribed advisory topic", "destination", destination)
 	}
 
-	<-ctx.Done()
-	return true, ctx.Err()
+	select {
+	case <-ctx.Done():
+		return true, ctx.Err()
+	case err := <-errCh:
+		return true, err
+	}
 }
 
-func (m *Monitor) consume(ctx context.Context, sub *gostomp.Subscription, topic string) {
+func (m *Monitor) consume(ctx context.Context, sub *gostomp.Subscription, topic string) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		case msg := <-sub.C:
 			if msg == nil {
-				return
+				return fmt.Errorf("subscription channel closed for %s", topic)
 			}
 			if msg.Err != nil {
 				m.logger.Warn("advisory message error", "error", msg.Err)
-				time.Sleep(250 * time.Millisecond)
 				continue
 			}
 			event := EventFromMessage(topic, msg)

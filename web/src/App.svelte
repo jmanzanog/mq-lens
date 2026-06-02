@@ -338,6 +338,12 @@
       { data: { id: 'cluster:runtime', role: 'cluster', label: 'Runtime' } }
     ];
 
+    const validNodeIds = new Set<string>();
+    columns.forEach(c => {
+      validNodeIds.add(c.cluster);
+      c.nodes.forEach(n => validNodeIds.add(n.id));
+    });
+
     for (const column of columns) {
       const yStart = 120 - ((column.nodes.length - 1) * column.gap) / 2;
       column.nodes.forEach((node, index) => {
@@ -360,15 +366,17 @@
     }
 
     elements.push(
-      ...topology.edges.map((edge, index) => ({
-        data: {
-          id: `edge:${index}:${edge.source}:${edge.target}`,
-          source: edge.source,
-          target: edge.target,
-          type: edge.type,
-          label: edgeLabel(edge)
-        }
-      }))
+      ...topology.edges
+        .filter(edge => validNodeIds.has(edge.source) && validNodeIds.has(edge.target))
+        .map((edge, index) => ({
+          data: {
+            id: `edge:${index}:${edge.source}:${edge.target}`,
+            source: edge.source,
+            target: edge.target,
+            type: edge.type,
+            label: edgeLabel(edge)
+          }
+        }))
     );
     return elements;
   }

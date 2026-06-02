@@ -2,6 +2,7 @@ package capture
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strconv"
 	"sync/atomic"
@@ -97,6 +98,7 @@ func (c *AuditConsumer) runOnce(ctx context.Context) (bool, error) {
 	c.setConnected(true)
 	c.logger.Info("stomp connected", "addr", c.cfg.STOMPAddr)
 
+	errCh := make(chan error, len(c.cfg.AuditQueues))
 	for _, queue := range c.cfg.AuditQueues {
 		auditName := brokerstomp.AuditQueueName(c.cfg.AuditPrefix, queue)
 		destination := brokerstomp.STOMPDestination(domain.DestinationQueue, auditName)
@@ -104,26 +106,32 @@ func (c *AuditConsumer) runOnce(ctx context.Context) (bool, error) {
 		if err != nil {
 			return true, err
 		}
-		go c.consume(ctx, sub, auditName, queue)
+		go func(n, q string) {
+			errCh <- c.consume(ctx, sub, n, q)
+		}(auditName, queue)
 		c.logger.Info("subscribed audit queue", "destination", destination)
 	}
 
-	<-ctx.Done()
-	return true, ctx.Err()
+	select {
+	case <-ctx.Done():
+		return true, ctx.Err()
+	case err := <-errCh:
+		return true, err
+	}
 }
 
-func (c *AuditConsumer) consume(ctx context.Context, sub *gostomp.Subscription, auditName, original string) {
+func (c *AuditConsumer) consume(ctx context.Context, sub *gostomp.Subscription, auditName, original string) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		case msg := <-sub.C:
 			if msg == nil {
-				return
+				return fmt.Errorf("subscription channel closed for %s", auditName)
 			}
 			if msg.Err != nil {
 				c.logger.Warn("stomp message error", "error", msg.Err)
-				return
+				continue
 			}
 			captured := c.toCapturedMessage(msg, auditName, original)
 			if err := c.store.SaveMessage(ctx, captured); err != nil {
