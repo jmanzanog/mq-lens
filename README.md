@@ -76,6 +76,14 @@ This eliminates the need to configure `activemq.xml` composites or manage `LENS_
 
 ### Docker Compose Example
 
+> **Important**: This setup relies on the "Magic Broker" (our pre-configured ActiveMQ image with the Lens Audit Plugin).
+> 
+> You can launch the full environment using the official `docker-compose.sidecar.yaml`:
+> ```bash
+> docker compose -f docker-compose.sidecar.yaml up -d
+> ```
+> This compose file orchestrates both the `mq-lens` sidecar and the `mq-lens-activemq` broker securely, setting up all necessary environment variables and volumes.
+
 ```yaml
 services:
   # The Magic Broker

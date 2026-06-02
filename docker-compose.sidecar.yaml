@@ -1,0 +1,30 @@
+services:
+  magic-broker:
+    image: ghcr.io/jmanzanog/mq-lens-activemq:latest
+    ports:
+      - "61616:61616" # OpenWire
+      - "61613:61613" # STOMP
+      - "8161:8161"   # Web Console / Jolokia
+    environment:
+      - LENS_AUDIT_DESTINATION=LENS.AUDIT.ALL
+      - LENS_AUDIT_PREFIX=LENS.AUDIT.
+      - LENS_FAIL_ON_AUDIT_ERROR=false
+      - LENS_MAX_AUDIT_MESSAGE_SIZE=1048576
+
+  mq-lens:
+    image: ghcr.io/jmanzanog/mq-lens:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - LENS_STOMP_ADDR=magic-broker:61613
+      - LENS_JOLOKIA_URL=http://magic-broker:8161/api/jolokia
+      - LENS_JOLOKIA_USER=admin
+      - LENS_JOLOKIA_PASSWORD=admin
+      - LENS_AUDIT_QUEUES=ALL
+    volumes:
+      - mq-lens-data:/data
+    depends_on:
+      - magic-broker
+
+volumes:
+  mq-lens-data:
