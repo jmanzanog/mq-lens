@@ -70,7 +70,6 @@ public class LensAuditBroker extends BrokerFilter {
             // Avoid deduplication discards by generating a distinct message ID
             org.apache.activemq.command.MessageId newId = new org.apache.activemq.command.MessageId(messageSend.getMessageId().toString() + "-audit");
             auditMessage.setMessageId(newId);
-            auditMessage.clearMarshalledState();
 
             // 4. Send the copy to the audit destination using a synthetic exchange to avoid transaction/metrics pollution
             ProducerBrokerExchange auditExchange = systemExchangeLocal.get();
