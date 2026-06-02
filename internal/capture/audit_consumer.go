@@ -129,23 +129,33 @@ func (c *AuditConsumer) consume(ctx context.Context, sub *gostomp.Subscription, 
 }
 
 func (c *AuditConsumer) toCapturedMessage(msg *gostomp.Message, auditName, original string) domain.CapturedMessage {
-	headers := map[string]string{
-		"message-id":   msg.Header.Get("message-id"),
-		"destination":  msg.Header.Get("destination"),
-		"content-type": msg.Header.Get("content-type"),
-	}
+	headers := map[string]string{}
 	properties := map[string]string{}
-	for _, key := range []string{"correlation-id", "reply-to", "type", "persistent", "priority", "timestamp", "expires"} {
-		if value := msg.Header.Get(key); value != "" {
-			properties[key] = value
+
+	allowlist := make(map[string]bool)
+	for _, k := range c.cfg.PropertiesAllowlist {
+		allowlist[k] = true
+	}
+
+	for i := 0; i < msg.Header.Len(); i++ {
+		k, v := msg.Header.GetAt(i)
+		switch k {
+		case "message-id", "destination", "content-type", "content-length", "subscription":
+			headers[k] = v
+		default:
+			if allowlist[k] {
+				properties[k] = v
+			}
 		}
 	}
+
 	if c.cfg.Redaction {
-		var changed bool
-		headers, changed = RedactMap(headers)
-		properties, _ = RedactMap(properties)
-		if changed {
-			c.logger.Info("sensitive header redacted")
+		headersChanged := false
+		propertiesChanged := false
+		headers, headersChanged = RedactMap(headers)
+		properties, propertiesChanged = RedactMap(properties)
+		if headersChanged || propertiesChanged {
+			c.logger.Info("sensitive headers or properties redacted")
 		}
 	}
 	body := ProcessBody(msg.Body, c.cfg.MaxBodyBytes, c.cfg.Redaction)

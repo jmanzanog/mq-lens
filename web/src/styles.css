@@ -193,15 +193,24 @@ nav button {
 }
 
 .split,
-.message-layout {
+.message-layout,
+.trace-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(360px, 0.9fr);
   gap: 16px;
   margin-top: 16px;
 }
 
-.message-layout {
+.message-layout,
+.trace-layout {
   align-items: start;
+}
+
+.timeline-event {
+  cursor: pointer;
+  padding: 8px;
+  border-left: 3px solid #7d897e;
+  margin-bottom: 8px;
 }
 
 .table-wrap {
@@ -377,7 +386,8 @@ pre {
 
   .metrics,
   .split,
-  .message-layout {
+  .message-layout,
+  .trace-layout {
     grid-template-columns: 1fr;
   }
 }

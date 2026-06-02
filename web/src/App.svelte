@@ -4,13 +4,15 @@
   import { connectEvents } from './lib/events';
   import type { BrokerSnapshot, CapturedMessage, DestinationSnapshot, Health, Topology } from './lib/types';
 
-  type View = 'dashboard' | 'destinations' | 'messages' | 'topology' | 'settings';
+  type View = 'dashboard' | 'destinations' | 'messages' | 'traces' | 'topology' | 'settings';
 
   let view = $state<View>('dashboard');
   let health = $state<Health | null>(null);
   let broker = $state<BrokerSnapshot | null>(null);
   let destinations = $state<DestinationSnapshot[]>([]);
   let messages = $state<CapturedMessage[]>([]);
+  let traceMessages = $state<CapturedMessage[]>([]);
+  let traceCorrelationId = $state('');
   let topology = $state<Topology>({ nodes: [], edges: [] });
   let selected = $state<CapturedMessage | null>(null);
   let query = $state('');
@@ -64,6 +66,18 @@
     view = 'messages';
   }
 
+  async function loadTrace(correlationId: string) {
+    const id = correlationId.trim();
+    if (!id) return;
+    traceCorrelationId = id;
+    view = 'traces';
+    try {
+      traceMessages = await api.messages(`?correlationId=${encodeURIComponent(id)}&sort=asc`);
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Trace load failed';
+    }
+  }
+
   function downloadSelected() {
     if (selected) {
       window.location.href = `/api/messages/${selected.id}/download`;
@@ -99,6 +113,13 @@
       window.clearInterval(timer);
       source.close();
     };
+  });
+
+  $effect(() => {
+    if (view !== 'traces') {
+      traceMessages = [];
+      traceCorrelationId = '';
+    }
   });
 
   $effect(() => {
@@ -160,6 +181,8 @@
         { selector: 'node[type = "queue"]', style: { 'background-color': '#f3e5a6', 'border-color': '#5c4f17' } },
         { selector: 'node[type = "audit"]', style: { 'background-color': '#ffe4d8', 'border-color': '#a34f3c' } },
         { selector: 'node[type = "topic"]', style: { 'background-color': '#d8e7ef', 'border-color': '#35596a' } },
+        { selector: 'node[type = "virtual-topic"]', style: { 'background-color': '#e8d8ef', 'border-color': '#60356a' } },
+        { selector: 'node[type = "consumer-queue"]', style: { 'background-color': '#f3e5a6', 'border-color': '#5c4f17', 'border-style': 'dotted' } },
         { selector: 'node[type = "consumer"]', style: { 'background-color': '#f8faf5', 'border-color': '#526055' } },
         { selector: 'node[type = "inspector"]', style: { 'background-color': '#17201b', color: '#f7f8f3', width: 150, height: 56 } },
         {
@@ -325,6 +348,8 @@
 
   function visualNodeType(node: GraphNode) {
     if (isAuditQueue(node)) return 'audit';
+    if (node.type === 'topic' && node.label.startsWith('VirtualTopic.')) return 'virtual-topic';
+    if (node.type === 'queue' && node.label.startsWith('Consumer.')) return 'consumer-queue';
     return node.type;
   }
 
@@ -339,6 +364,11 @@
       return `Consumer\n${compactDestination(node.label.replace('ActiveMQ.Advisory.Consumer.Queue.', ''))}`;
     }
     if (node.label.startsWith('LENS.AUDIT.')) return node.label.replace('LENS.AUDIT.', 'AUDIT\n');
+    if (node.label.startsWith('VirtualTopic.')) return node.label.replace('VirtualTopic.', 'VirtualTopic\n');
+    if (node.label.startsWith('Consumer.')) {
+      const parts = node.label.split('.');
+      if (parts.length >= 3) return `Consumer\n${parts[1]}`;
+    }
     if (node.label.startsWith('ActiveMQ.Advisory.')) return node.label.replace('ActiveMQ.Advisory.', 'Advisory\n');
     return node.label.length > 24 ? `${node.label.slice(0, 21)}...` : node.label;
   }
@@ -379,6 +409,7 @@
       <button class:active={view === 'dashboard'} onclick={() => (view = 'dashboard')}>Dashboard</button>
       <button class:active={view === 'destinations'} onclick={() => (view = 'destinations')}>Destinations</button>
       <button class:active={view === 'messages'} onclick={() => (view = 'messages')}>Messages</button>
+      <button class:active={view === 'traces'} onclick={() => (view = 'traces')}>Traces</button>
       <button class:active={view === 'topology'} onclick={() => (view = 'topology')}>Topology</button>
       <button class:active={view === 'settings'} onclick={() => (view = 'settings')}>Settings</button>
     </nav>
@@ -449,6 +480,27 @@
       <section class="message-layout">
         {@render MessageList(messages, openMessage)}
         {@render MessageDetail(selected)}
+      </section>
+    {:else if view === 'traces'}
+      <section class="message-tools">
+        <input placeholder="Search correlationId" bind:value={traceCorrelationId} onkeydown={(event) => event.key === 'Enter' && loadTrace(traceCorrelationId)} />
+        <button onclick={() => loadTrace(traceCorrelationId)}>Trace</button>
+      </section>
+      <section class="trace-layout">
+        {#if traceMessages.length === 0}
+          <div class="panel"><h3>No traces found</h3></div>
+        {:else}
+          <div class="timeline panel">
+            <h3>Timeline: {traceCorrelationId}</h3>
+            {#each traceMessages as tm (tm.id)}
+              <div class="timeline-event" onclick={() => openMessage(tm.id)}>
+                <strong>{tm.originalDestination}</strong> <span class="muted">{new Date(tm.capturedAt).toLocaleTimeString()}</span>
+                <div>{tm.type || 'Event'}</div>
+              </div>
+            {/each}
+          </div>
+          {@render MessageDetail(selected)}
+        {/if}
       </section>
     {:else if view === 'topology'}
       <section class="topology-note">
@@ -533,6 +585,9 @@
         {#if message.truncated}<span>truncated</span>{/if}
         {#if message.redacted}<span>redacted</span>{/if}
       </div>
+      {#if message.correlationId}
+        <button onclick={() => loadTrace(message.correlationId)}>View Trace</button>
+      {/if}
       <h4>Body</h4>
       <pre>{message.bodyText || JSON.stringify(message.bodyBytes)}</pre>
       <h4>Headers</h4>

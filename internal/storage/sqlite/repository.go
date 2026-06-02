@@ -195,10 +195,22 @@ func (r *Repository) ListMessages(ctx context.Context, filter domain.MessageFilt
 		where = append(where, "body_text LIKE ?")
 		args = append(args, "%"+filter.Contains+"%")
 	}
+	if filter.HeaderKey != "" {
+		where = append(where, "EXISTS (SELECT 1 FROM message_headers h WHERE h.message_id = captured_messages.id AND h.key = ? AND (? = '' OR h.value = ?))")
+		args = append(args, filter.HeaderKey, filter.HeaderValue, filter.HeaderValue)
+	}
+	if filter.PropertyKey != "" {
+		where = append(where, "EXISTS (SELECT 1 FROM message_properties p WHERE p.message_id = captured_messages.id AND p.key = ? AND (? = '' OR p.value = ?))")
+		args = append(args, filter.PropertyKey, filter.PropertyValue, filter.PropertyValue)
+	}
+	order := "DESC"
+	if filter.SortAsc {
+		order = "ASC"
+	}
 	query := `SELECT id, captured_at, broker, original_destination, audit_destination, destination_type,
 		message_id, correlation_id, reply_to, message_type, persistent, priority, timestamp, expiration,
 		body_format, body_text, body_bytes, body_size, body_sha256, truncated, redacted
-		FROM captured_messages WHERE ` + strings.Join(where, " AND ") + ` ORDER BY captured_at DESC LIMIT ? OFFSET ?`
+		FROM captured_messages WHERE ` + strings.Join(where, " AND ") + ` ORDER BY captured_at ` + order + ` LIMIT ? OFFSET ?`
 	args = append(args, filter.Limit, filter.Offset)
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {

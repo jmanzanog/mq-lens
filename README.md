@@ -66,7 +66,44 @@ LENS_MAX_BODY_BYTES=262144
 LENS_MAX_MESSAGES=10000
 LENS_RETENTION_HOURS=24
 LENS_ENABLE_REDACTION=true
+LENS_VIRTUAL_TOPIC_MODE=true
 ```
+
+## Virtual Topics & Custom Auditing
+
+MQ Lens can be configured to intercept standard queues or ActiveMQ Virtual Topics.
+
+1. **Virtual Topic Mode**
+   By setting `LENS_VIRTUAL_TOPIC_MODE=true`, the system assumes your audit destinations are derived from `VirtualTopic.<destination>` logic.
+2. **Configuration Generator**
+   Because Virtual Topics require special `compositeTopic` forwarding to audit queues, you can generate the required `activemq.xml` snippet using the CLI. This will read your `LENS_AUDIT_QUEUES` and generate the proper composites:
+   ```sh
+   mq-lens generate-activemq-config --output ./activemq-audit.xml
+   ```
+3. **Sniff Mode Limitations**
+   Directly sniffing `Consumer.*` business queues is discouraged and not officially supported because taking messages out of these queues would steal them from the real business consumers. Always use the generated audit composites.
+
+## Sidecar Integration (Docker Compose)
+
+You can attach MQ Lens to an existing ActiveMQ container in your team's `docker-compose.yaml` without replacing your entire stack.
+
+```yaml
+services:
+  mq-lens:
+    image: ghcr.io/jmanzanog/mq-lens:latest
+    ports:
+      - "8088:8080" # UI port (change left side if 8088 conflicts)
+    environment:
+      - LENS_VIRTUAL_TOPIC_MODE=true
+      - LENS_AUDIT_QUEUES=ORDER.CREATED,PAYMENT.EVENTS
+      - ACTIVEMQ_STOMP_ADDR=message-broker:61613
+      - ACTIVEMQ_JOLOKIA_URL=http://message-broker:8161/api/jolokia
+      - ACTIVEMQ_STOMP_USER=admin
+      - ACTIVEMQ_STOMP_PASSWORD=admin
+    depends_on:
+      - message-broker
+```
+Ensure your broker exposes STOMP (61613) and Jolokia (8161).
 
 ## API
 

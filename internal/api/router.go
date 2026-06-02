@@ -126,6 +126,7 @@ func (r *Router) messages(w http.ResponseWriter, req *http.Request) {
 		PropertyValue:   req.URL.Query().Get("propertyValue"),
 		Limit:           queryInt(req, "limit", 100),
 		Offset:          queryInt(req, "offset", 0),
+		SortAsc:         req.URL.Query().Get("sort") == "asc",
 	}
 	messages, err := r.store.ListMessages(req.Context(), filter)
 	if err != nil {

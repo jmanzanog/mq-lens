@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"log/slog"
 	"net/http"
 	"os"
@@ -11,12 +12,25 @@ import (
 	"time"
 
 	"github.com/jmanzano/mq-lens/internal/app"
+	"github.com/jmanzano/mq-lens/internal/cli"
 	"github.com/jmanzano/mq-lens/internal/config"
 )
 
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	cfg := config.Load()
+
+	if len(os.Args) > 1 && os.Args[1] == "generate-activemq-config" {
+		generateCmd := flag.NewFlagSet("generate-activemq-config", flag.ExitOnError)
+		outputPtr := generateCmd.String("output", "-", "Output path for the generated activemq.xml snippet")
+		_ = generateCmd.Parse(os.Args[2:])
+
+		if err := cli.GenerateActiveMQConfig(cfg, *outputPtr); err != nil {
+			logger.Error("generate config failed", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

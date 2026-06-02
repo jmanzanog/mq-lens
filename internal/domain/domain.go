@@ -131,4 +131,5 @@ type MessageFilter struct {
 	PropertyValue   string
 	Limit           int
 	Offset          int
+	SortAsc         bool
 }
