@@ -41,7 +41,7 @@ type Config struct {
 
 func Load() Config {
 	virtualTopicMode := envBool("LENS_VIRTUAL_TOPIC_MODE", false)
-	propertiesAllowlist := envList("LENS_PROPERTIES_ALLOWLIST", "correlation-id,reply-to,type,persistent,priority,timestamp,expires,eventId,bbEventType,sourceEventTopic,LENS_OriginalDestination,LENS_DestinationType")
+	propertiesAllowlist := envList("LENS_PROPERTIES_ALLOWLIST", "correlation-id,reply-to,type,persistent,priority,timestamp,expires,eventId,bbEventType,sourceEventTopic,LENS_OriginalDestination,LENS_DestinationType,LENS_OriginalMessageId")
 
 	return Config{
 		AppName:             "MQ Lens",

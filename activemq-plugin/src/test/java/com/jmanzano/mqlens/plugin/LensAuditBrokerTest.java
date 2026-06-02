@@ -32,7 +32,7 @@ public class LensAuditBrokerTest {
         realMessage.setDestination(new ActiveMQQueue("BUSINESS.QUEUE"));
         realMessage.setText("payload");
         realMessage.setProperty("custom-header", "value");
-        realMessage.setMessageId(new MessageId("ID:test-1"));
+        realMessage.setMessageId(new MessageId("ID:test:1:1:1"));
         realMessage.setPersistent(true);
         realMessage.setExpiration(12345L);
 
@@ -53,7 +53,8 @@ public class LensAuditBrokerTest {
         assertEquals("payload", captured.getText());
         assertTrue(captured.isPersistent());
         assertEquals(12345L, captured.getExpiration());
-        assertTrue(captured.getMessageId().toString().endsWith("-audit"));
+        assertEquals(1000000001L, captured.getMessageId().getProducerSequenceId());
+        assertEquals("ID:test:1:1:1", captured.getProperty("LENS_OriginalMessageId"));
     }
 
     @Test
