@@ -1,8 +1,9 @@
 name: Publish Docker Image
 
 on:
-  push:
-    branches: ["main"]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
 
 permissions:
   contents: read
@@ -14,15 +15,21 @@ concurrency:
 
 jobs:
   publish:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Set image metadata
         id: meta
         env:
           GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
 
@@ -54,7 +61,7 @@ jobs:
           )"
 
           tag="${date_tag}.${next}"
-          short_sha="${GITHUB_SHA::12}"
+          short_sha="${SOURCE_SHA::12}"
 
           {
             echo "image=${image}"
@@ -82,9 +89,10 @@ jobs:
           push: true
           tags: |
             ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version_tag }}
+            ${{ steps.meta.outputs.image }}:latest
             ${{ steps.meta.outputs.image }}:main
             ${{ steps.meta.outputs.image }}:sha-${{ steps.meta.outputs.short_sha }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha }}
             org.opencontainers.image.version=${{ steps.meta.outputs.version_tag }}

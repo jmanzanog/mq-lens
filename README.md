@@ -106,7 +106,7 @@ make build
 
 ## Container Publishing
 
-Every commit pushed to `main` publishes a Docker image to GitHub Container Registry:
+Every commit pushed to `main` publishes a Docker image to GitHub Container Registry after the `CI` workflow completes successfully:
 
 ```text
 ghcr.io/<owner>/mq-lens:<YYYY.MM.DD.N>
@@ -121,9 +121,12 @@ ghcr.io/jmanzanog/mq-lens:2026.06.02.1
 The workflow also publishes:
 
 ```text
+ghcr.io/<owner>/mq-lens:latest
 ghcr.io/<owner>/mq-lens:main
 ghcr.io/<owner>/mq-lens:sha-<short-commit-sha>
 ```
+
+`latest` points to the most recent image published after a successful `CI` run on `main`.
 
 The daily counter is calculated from existing GHCR tags for the same date, so the next successful publish on the same UTC day increments the final number.
 
