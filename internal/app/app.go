@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -90,6 +92,8 @@ func (a *App) Snapshot() domain.BrokerSnapshot {
 	return a.snapshot
 }
 
+var consumerRegex = regexp.MustCompile(`^Consumer\.([^.]+)\.VirtualTopic\.(.+)$`)
+
 func (a *App) Topology() domain.Topology {
 	snapshot := a.Snapshot()
 	nodes := []domain.TopologyNode{{
@@ -101,10 +105,35 @@ func (a *App) Topology() domain.Topology {
 	brokerID := nodes[0].ID
 	inspectorID := "inspector:mq-lens"
 	nodes = append(nodes, domain.TopologyNode{ID: inspectorID, Type: "inspector", Label: "MQ Lens"})
+
 	for _, destination := range append(snapshot.Queues, snapshot.Topics...) {
 		id := string(destination.Type) + ":" + destination.Name
-		nodes = append(nodes, domain.TopologyNode{ID: id, Type: string(destination.Type), Label: destination.Name, Meta: destination})
+		nodeType := string(destination.Type)
+		if nodeType == "queue" && strings.HasPrefix(destination.Name, "Consumer.") {
+			nodeType = "consumer-queue"
+		}
+		nodes = append(nodes, domain.TopologyNode{ID: id, Type: nodeType, Label: destination.Name, Meta: destination})
 		edges = append(edges, domain.TopologyEdge{Source: brokerID, Target: id, Type: "owns"})
+
+		if destination.Type == "queue" {
+			if match := consumerRegex.FindStringSubmatch(destination.Name); match != nil {
+				serviceName := match[1]
+				topicName := match[2]
+				topicID := "topic:VirtualTopic." + topicName
+
+				// Draw edge from VirtualTopic -> Consumer Queue (Routing)
+				edges = append(edges, domain.TopologyEdge{Source: topicID, Target: id, Type: "routes"})
+
+				// Add inferred service if the queue has active consumers
+				if destination.ConsumerCount > 0 {
+					serviceNodeID := "service:" + serviceName
+					nodes = append(nodes, domain.TopologyNode{ID: serviceNodeID, Type: "service", Label: serviceName})
+					edges = append(edges, domain.TopologyEdge{Source: id, Target: serviceNodeID, Type: "consumes"})
+				}
+				continue
+			}
+		}
+
 		if destination.ConsumerCount > 0 {
 			consumerID := "consumer:" + destination.Name
 			nodes = append(nodes, domain.TopologyNode{ID: consumerID, Type: "consumer", Label: "Consumers"})

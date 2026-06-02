@@ -191,7 +191,7 @@ func (c *AuditConsumer) toCapturedMessage(msg *gostomp.Message, auditName, origi
 		AuditDestination:    auditName,
 		DestinationType:     msgType,
 		MessageID:           firstNonEmpty(properties["LENS_OriginalMessageId"], msg.Header.Get("message-id"), msg.Header.Get("JMSMessageID")),
-		CorrelationID:       firstNonEmpty(msg.Header.Get("correlation-id"), msg.Header.Get("JMSCorrelationID")),
+		CorrelationID:       firstNonEmpty(properties["correlationId"], properties["correlation-id"], properties["JMSCorrelationID"], properties["x-correlation-id"], properties["X-Correlation-ID"], msg.Header.Get("correlation-id"), msg.Header.Get("JMSCorrelationID"), msg.Header.Get("x-correlation-id"), msg.Header.Get("X-Correlation-ID")),
 		ReplyTo:             msg.Header.Get("reply-to"),
 		Type:                msg.Header.Get("type"),
 		Persistent:          parseBool(msg.Header.Get("persistent")),

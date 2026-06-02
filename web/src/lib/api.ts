@@ -20,6 +20,13 @@ async function postJSON<T>(path: string, body: unknown): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function deleteJSON(path: string): Promise<void> {
+  const response = await fetch(path, { method: 'DELETE' });
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText}`);
+  }
+}
+
 export const api = {
   health: () => getJSON<Health>('/api/health'),
   broker: () => getJSON<BrokerSnapshot>('/api/broker/status'),
@@ -27,5 +34,7 @@ export const api = {
   topology: () => getJSON<Topology>('/api/topology'),
   messages: (query = '') => getJSON<CapturedMessage[]>(`/api/messages${query}`),
   message: (id: string) => getJSON<CapturedMessage>(`/api/messages/${id}`),
+  recentCorrelationIds: () => getJSON<string[]>('/api/traces/correlation-ids'),
+  clearMessages: () => deleteJSON('/api/messages'),
   sendTestMessage: (request: SendTestMessageRequest) => postJSON<{ status: string }>('/api/dev/send-test-message', request)
 };

@@ -56,6 +56,28 @@ button.active {
   color: #f7f8f3;
 }
 
+button.danger {
+  border-color: #c55d4b;
+  color: #c55d4b;
+}
+
+button.danger:hover {
+  background: #c55d4b;
+  color: #f7f8f3;
+}
+
+.text-danger {
+  color: #c55d4b;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.mt-3 {
+  margin-top: 16px;
+}
+
 .shell {
   min-height: 100vh;
   display: grid;
@@ -240,6 +262,27 @@ tbody tr:hover {
   background: #eef1ec;
 }
 
+tr.row-virtual-topic td {
+  color: #60356a;
+}
+tbody tr.row-virtual-topic:hover {
+  background: #f5edf7;
+}
+
+tr.row-consumer-queue td {
+  color: #5c4f17;
+}
+tbody tr.row-consumer-queue:hover {
+  background: #fdfaf0;
+}
+
+tr.row-audit td {
+  color: #a34f3c;
+}
+tbody tr.row-audit:hover {
+  background: #faebe8;
+}
+
 dl {
   display: grid;
   grid-template-columns: 110px 1fr;
@@ -373,6 +416,40 @@ pre {
   width: max(100%, 1450px);
   height: min(74vh, 760px);
   min-height: 640px;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 32, 27, 0.4);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+}
+
+.modal {
+  background: #fbfcf8;
+  padding: 24px;
+  border-radius: 12px;
+  width: min(90vw, 400px);
+  box-shadow: 0 18px 38px rgba(23, 32, 27, 0.18);
+}
+
+.modal h3 {
+  margin: 0 0 12px;
+  color: #c55d4b;
+}
+
+.modal p {
+  color: #667266;
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 @media (max-width: 820px) {

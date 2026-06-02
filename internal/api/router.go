@@ -25,6 +25,8 @@ type Store interface {
 	CountMessages(context.Context) (int64, error)
 	AddNote(context.Context, string, string) (domain.MessageNote, error)
 	DeleteNote(context.Context, string) error
+	ClearMessages(context.Context) error
+	RecentCorrelationIDs(context.Context, int) ([]string, error)
 }
 
 type StatusProvider interface {
@@ -52,6 +54,8 @@ func New(cfg config.Config, store Store, status StatusProvider, events *stream.B
 	r.Get("/messages", router.messages)
 	r.Get("/messages/{id}", router.message)
 	r.Get("/messages/{id}/download", router.downloadMessage)
+	r.Delete("/messages", router.clearMessages)
+	r.Get("/traces/correlation-ids", router.recentCorrelationIDs)
 	r.Post("/messages/{id}/notes", router.addNote)
 	r.Delete("/messages/{id}/notes/{noteId}", router.deleteNote)
 	if cfg.DevTools {
@@ -185,6 +189,31 @@ func (r *Router) deleteNote(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (r *Router) clearMessages(w http.ResponseWriter, req *http.Request) {
+	if err := r.store.ClearMessages(req.Context()); err != nil {
+		r.logger.Error("Failed to clear messages", "error", err)
+		writeError(w, http.StatusInternalServerError, "failed to clear messages")
+		return
+	}
+	r.events.Publish("messages.cleared", nil)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (r *Router) recentCorrelationIDs(w http.ResponseWriter, req *http.Request) {
+	limit := 20
+	if req.URL.Query().Has("limit") {
+		if l, err := strconv.Atoi(req.URL.Query().Get("limit")); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+	ids, err := r.store.RecentCorrelationIDs(req.Context(), limit)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to get correlation IDs")
+		return
+	}
+	writeJSON(w, http.StatusOK, ids)
 }
 
 func (r *Router) sendTestMessage(w http.ResponseWriter, req *http.Request) {

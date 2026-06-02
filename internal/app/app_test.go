@@ -65,6 +65,37 @@ func TestTopologyNormalizesPrefixedAuditQueues(t *testing.T) {
 	}
 }
 
+func TestTopologyInfersServiceFromVirtualTopicConsumer(t *testing.T) {
+	application, err := New(config.Config{
+		DBPath: filepath.Join(t.TempDir(), "test.db"),
+		Mode:   "hybrid",
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("New() error=%v", err)
+	}
+	defer func() { _ = application.Close() }()
+
+	application.mu.Lock()
+	application.snapshot = domain.BrokerSnapshot{
+		BrokerName: "localhost",
+		Queues: []domain.DestinationSnapshot{
+			{Name: "Consumer.my-service.VirtualTopic.my-topic", Type: domain.DestinationQueue, ConsumerCount: 1},
+		},
+		Topics: []domain.DestinationSnapshot{
+			{Name: "VirtualTopic.my-topic", Type: domain.DestinationTopic},
+		},
+	}
+	application.mu.Unlock()
+
+	topology := application.Topology()
+	if !hasEdge(topology, "topic:VirtualTopic.my-topic", "queue:Consumer.my-service.VirtualTopic.my-topic", "routes") {
+		t.Errorf("missing routes edge")
+	}
+	if !hasEdge(topology, "queue:Consumer.my-service.VirtualTopic.my-topic", "service:my-service", "consumes") {
+		t.Errorf("missing consumes edge")
+	}
+}
+
 func TestRefreshSnapshotPreservesLastGoodSnapshotOnJolokiaError(t *testing.T) {
 	fail := false
 	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {

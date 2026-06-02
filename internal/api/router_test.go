@@ -103,6 +103,29 @@ func TestDevSendTestMessageValidatesDestination(t *testing.T) {
 	}
 }
 
+func TestRecentCorrelationIDsEndpoint(t *testing.T) {
+	handler := newTestHandler()
+	req := httptest.NewRequest(http.MethodGet, "/traces/correlation-ids", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), `"corr-test"`) {
+		t.Fatalf("missing correlation id in response: %s", rec.Body.String())
+	}
+}
+
+func TestClearMessagesEndpoint(t *testing.T) {
+	handler := newTestHandler()
+	req := httptest.NewRequest(http.MethodDelete, "/messages", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status=%d", rec.Code)
+	}
+}
+
 func newTestHandler() http.Handler {
 	return New(testConfig(), &fakeStore{}, fakeStatus{}, stream.NewBroker(), slog.New(slog.NewTextHandler(io.Discard, nil)))
 }
@@ -162,4 +185,12 @@ func (*fakeStore) AddNote(_ context.Context, messageID, note string) (domain.Mes
 
 func (*fakeStore) DeleteNote(context.Context, string) error {
 	return nil
+}
+
+func (*fakeStore) ClearMessages(context.Context) error {
+	return nil
+}
+
+func (*fakeStore) RecentCorrelationIDs(context.Context, int) ([]string, error) {
+	return []string{"corr-test"}, nil
 }

@@ -3,6 +3,7 @@
   import { api } from './lib/api';
   import { sortDestinations } from './lib/destinations';
   import { connectEvents } from './lib/events';
+  import { formatTimeWithMs } from './lib/format';
   import { cleanupForView, type View } from './lib/navigation';
   import type { BrokerSnapshot, CapturedMessage, DestinationSnapshot, Health, Topology } from './lib/types';
 
@@ -25,6 +26,16 @@
   let devStatus = $state('');
   let topologyElement = $state<HTMLDivElement | null>(null);
   let topologyInstance: Core | null = null;
+  let showResetConfirm = $state(false);
+  let recentTraceIds = $state<string[]>([]);
+
+  function refreshTraceIds() {
+    if (view === 'traces' && !traceCorrelationId) {
+      api.recentCorrelationIds().then(ids => {
+        if (view === 'traces') recentTraceIds = ids || [];
+      }).catch(() => {});
+    }
+  }
 
   function navigateTo(target: View) {
     if (target === view) return;
@@ -32,6 +43,18 @@
     if ('selected' in resets) selected = null;
     if ('traceMessages' in resets) { traceMessages = []; traceCorrelationId = ''; }
     view = target;
+    if (view === 'traces' && recentTraceIds.length === 0) {
+      refreshTraceIds();
+    }
+  }
+
+  function destinationRowClass(destination: DestinationSnapshot) {
+    // Note: Order matters but since prefixes are mutually exclusive 
+    // (VirtualTopic.* vs Consumer.* vs LENS.AUDIT.*), there is no actual overlap danger.
+    if (destination.type === 'topic' && destination.name.startsWith('VirtualTopic.')) return 'row-virtual-topic';
+    if (destination.type === 'queue' && destination.name.startsWith('Consumer.')) return 'row-consumer-queue';
+    if (destination.type === 'queue' && destination.name.startsWith('LENS.AUDIT.')) return 'row-audit';
+    return '';
   }
 
   type GraphNode = Topology['nodes'][number];
@@ -65,6 +88,7 @@
       if (selected) {
         selected = nextMessages.find((item) => item.id === selected?.id) ?? selected;
       }
+      refreshTraceIds();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Request failed';
     }
@@ -112,12 +136,23 @@
     }
   }
 
+  async function executeReset() {
+    showResetConfirm = false;
+    try {
+      await api.clearMessages();
+      // Notice: we do not call refresh() here. The backend emits 'messages.cleared' 
+      // via SSE, which automatically triggers a refresh in connectEvents.
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Reset failed';
+    }
+  }
+
   $effect(() => {
     refresh();
     const timer = window.setInterval(refresh, 5000);
     const source = connectEvents((type) => {
       eventStatus = type === 'sse.error' ? 'SSE reconnecting' : 'SSE live';
-      if (!livePaused && (type === 'message.captured' || type === 'broker.status.changed')) {
+      if (!livePaused && (type === 'message.captured' || type === 'broker.status.changed' || type === 'messages.cleared')) {
         refresh();
       }
     });
@@ -190,6 +225,7 @@
         { selector: 'node[type = "consumer-queue"]', style: { 'background-color': '#f3e5a6', 'border-color': '#5c4f17', 'border-style': 'dotted' } },
         { selector: 'node[type = "consumer"]', style: { 'background-color': '#f8faf5', 'border-color': '#526055' } },
         { selector: 'node[type = "inspector"]', style: { 'background-color': '#17201b', color: '#f7f8f3', width: 150, height: 56 } },
+        { selector: 'node[type = "service"]', style: { 'background-color': '#2a3b31', color: '#f7f8f3', shape: 'round-hexagon', width: 130 } },
         {
           selector: 'edge',
           style: {
@@ -218,6 +254,7 @@
             color: '#9c4b3a'
           }
         },
+        { selector: 'edge[type = "routes"]', style: { 'line-style': 'dotted', 'line-color': '#60356a', 'target-arrow-color': '#60356a' } },
         { selector: 'edge[type = "observes"]', style: { width: 2.8, 'line-color': '#17201b', 'target-arrow-color': '#17201b', color: '#17201b' } },
         {
           selector: 'edge[type = "owns"]',
@@ -338,10 +375,16 @@
 
   function topologyColumns(nodes: GraphNode[]) {
     const broker = nodes.filter((node) => node.type === 'broker');
-    const business = nodes.filter((node) => node.type === 'queue' && !isAuditQueue(node));
+    const business = nodes.filter((node) => 
+      (node.type === 'queue' && !isAuditQueue(node)) ||
+      (node.type === 'topic' && node.label.startsWith('VirtualTopic.'))
+    );
     const audit = nodes.filter((node) => node.type === 'queue' && isAuditQueue(node));
-    const advisory = nodes.filter((node) => node.type === 'topic');
-    const runtime = nodes.filter((node) => node.type === 'inspector' || node.type === 'consumer');
+    const advisory = nodes.filter((node) => node.type === 'topic' && !node.label.startsWith('VirtualTopic.'));
+    const runtime = nodes.filter((node) => 
+      node.type === 'inspector' || node.type === 'consumer' || node.type === 'service' || 
+      node.type === 'consumer-queue'
+    );
     return [
       { cluster: 'cluster:broker', x: 80, gap: 86, nodes: broker },
       { cluster: 'cluster:business', x: 330, gap: 86, nodes: business },
@@ -352,9 +395,9 @@
   }
 
   function visualNodeType(node: GraphNode) {
+    if (node.type === 'service') return 'service';
     if (isAuditQueue(node)) return 'audit';
     if (node.type === 'topic' && node.label.startsWith('VirtualTopic.')) return 'virtual-topic';
-    if (node.type === 'queue' && node.label.startsWith('Consumer.')) return 'consumer-queue';
     return node.type;
   }
 
@@ -363,6 +406,7 @@
   }
 
   function compactTopologyLabel(node: GraphNode) {
+    if (node.type === 'service') return `App\n${node.label}`;
     if (node.type === 'consumer') return 'Consumers';
     if (node.type === 'inspector') return 'MQ Lens';
     if (node.label.startsWith('ActiveMQ.Advisory.Consumer.Queue.')) {
@@ -370,7 +414,7 @@
     }
     if (node.label.startsWith('LENS.AUDIT.')) return node.label.replace('LENS.AUDIT.', 'AUDIT\n');
     if (node.label.startsWith('VirtualTopic.')) return node.label.replace('VirtualTopic.', 'VirtualTopic\n');
-    if (node.label.startsWith('Consumer.')) {
+    if (node.type === 'consumer-queue') {
       const parts = node.label.split('.');
       if (parts.length >= 3) return `Consumer\n${parts[1]}`;
     }
@@ -472,6 +516,12 @@
     {:else if view === 'destinations'}
       {@render DestinationTable(sortedDestinations)}
     {:else if view === 'messages'}
+      <section class="topology-note mb-2">
+        <div>
+          <strong>Message Store</strong>
+          <span>Source of truth for captured payloads and JMS properties.</span>
+        </div>
+      </section>
       <section class="message-tools">
         <input placeholder="Search body" bind:value={query} onkeydown={(event) => event.key === 'Enter' && refresh()} />
         <select bind:value={destinationFilter} onchange={refresh} aria-label="Destination filter">
@@ -488,19 +538,47 @@
         {@render MessageDetail(selected)}
       </section>
     {:else if view === 'traces'}
+      <section class="topology-note mb-2">
+        <div>
+          <strong>Traces</strong>
+          <span>Searches indexed correlation IDs. If empty, try Messages or select a known ID below.</span>
+        </div>
+      </section>
       <section class="message-tools">
         <input placeholder="Search correlationId" bind:value={traceCorrelationId} onkeydown={(event) => event.key === 'Enter' && loadTrace(traceCorrelationId)} />
         <button onclick={() => loadTrace(traceCorrelationId)}>Trace</button>
       </section>
       <section class="trace-layout">
         {#if traceMessages.length === 0}
-          <div class="panel"><h3>No traces found</h3></div>
+          <div class="panel">
+            {#if traceCorrelationId}
+              <h3 class="text-danger">No trace found for "{traceCorrelationId}"</h3>
+              <p class="muted">You can try finding this correlation ID directly in the Messages view.</p>
+              <button onclick={() => {
+                query = traceCorrelationId;
+                navigateTo('messages');
+                refresh();
+              }}>Open in Messages</button>
+            {:else}
+              <h3>Traces</h3>
+              <p class="muted">Enter a correlation ID to see the sequence of events across topics and queues.</p>
+            {/if}
+            
+            {#if recentTraceIds && recentTraceIds.length > 0}
+              <h4 class="mt-3">Recent Correlation IDs</h4>
+              <div class="badges mt-3">
+                 {#each recentTraceIds as rid}
+                   <span role="button" tabindex="0" class="clickable" onclick={() => { traceCorrelationId = rid; loadTrace(rid); }} onkeydown={(e) => e.key === 'Enter' && loadTrace(rid)}>{rid}</span>
+                 {/each}
+              </div>
+            {/if}
+          </div>
         {:else}
           <div class="timeline panel">
             <h3>Timeline: {traceCorrelationId}</h3>
             {#each traceMessages as tm (tm.id)}
               <div class="timeline-event" onclick={() => openMessage(tm.id)}>
-                <strong>{tm.originalDestination}</strong> <span class="muted">{new Date(tm.capturedAt).toLocaleTimeString()}</span>
+                <strong>{tm.originalDestination}</strong> <span class="muted">{formatTimeWithMs(tm.capturedAt)}</span>
                 <div>{tm.type || 'Event'}</div>
               </div>
             {/each}
@@ -512,7 +590,7 @@
       <section class="topology-note">
         <div>
           <strong>Live topology</strong>
-          <span>Updated from Jolokia polling and ActiveMQ advisory events.</span>
+          <span>Broker destinations and consumers. For event chains, use Messages filtered by correlationId.</span>
         </div>
         <button class="help-button" aria-label="Explain topology updates">?</button>
         <div class="help-popover" role="tooltip">
@@ -537,9 +615,27 @@
           {#if devStatus}<span>{devStatus}</span>{/if}
         </div>
       </section>
+      <section class="panel mt-3">
+        <h3>Reset State</h3>
+        <p class="muted">Clear all captured messages and traces, returning MQ Lens to its initial blank state.</p>
+        <button class="danger" onclick={() => showResetConfirm = true}>Clear all data</button>
+      </section>
     {/if}
     {/key}
   </section>
+
+  {#if showResetConfirm}
+    <div class="modal-overlay">
+      <div class="modal">
+        <h3>Clear Data</h3>
+        <p>Are you sure you want to delete all captured messages? This cannot be undone.</p>
+        <div class="modal-actions">
+          <button onclick={() => showResetConfirm = false}>Cancel</button>
+          <button class="danger" onclick={executeReset}>Delete everything</button>
+        </div>
+      </div>
+    </div>
+  {/if}
 </main>
 
 {#snippet MessageList(messages: CapturedMessage[], openMessage: (id: string) => void)}
@@ -549,7 +645,7 @@
       <tbody>
         {#each messages as message (message.id)}
           <tr onclick={() => openMessage(message.id)}>
-            <td>{new Date(message.capturedAt).toLocaleTimeString()}</td>
+            <td>{formatTimeWithMs(message.capturedAt)}</td>
             <td>{message.originalDestination}</td>
             <td>{message.bodyFormat}</td>
             <td>{message.bodySize}</td>
@@ -567,7 +663,7 @@
       <thead><tr><th>Name</th><th>Type</th><th>Queue size</th><th>Enqueue</th><th>Dequeue</th><th>Consumers</th><th>Producers</th></tr></thead>
       <tbody>
         {#each destinations as destination (`${destination.type}:${destination.name}`)}
-          <tr>
+          <tr class={destinationRowClass(destination)}>
             <td>{destination.name}</td>
             <td>{destination.type}</td>
             <td>{destination.queueSize}</td>

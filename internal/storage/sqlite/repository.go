@@ -184,8 +184,8 @@ func (r *Repository) ListMessages(ctx context.Context, filter domain.MessageFilt
 		args = append(args, filter.DestinationType)
 	}
 	if filter.CorrelationID != "" {
-		where = append(where, "correlation_id = ?")
-		args = append(args, filter.CorrelationID)
+		where = append(where, "(correlation_id = ? OR EXISTS (SELECT 1 FROM message_properties p WHERE p.message_id = captured_messages.id AND p.key IN ('correlationId', 'correlation-id', 'JMSCorrelationID', 'x-correlation-id', 'X-Correlation-ID') AND p.value = ?))")
+		args = append(args, filter.CorrelationID, filter.CorrelationID)
 	}
 	if filter.MessageID != "" {
 		where = append(where, "message_id = ?")
@@ -270,6 +270,38 @@ func (r *Repository) AddNote(ctx context.Context, messageID, note string) (domai
 func (r *Repository) DeleteNote(ctx context.Context, noteID string) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM message_notes WHERE id = ?`, noteID)
 	return err
+}
+
+func (r *Repository) ClearMessages(ctx context.Context) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM captured_messages`)
+	return err
+}
+
+func (r *Repository) RecentCorrelationIDs(ctx context.Context, limit int) ([]string, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT correlation_id FROM captured_messages 
+		WHERE correlation_id != '' 
+		GROUP BY correlation_id 
+		ORDER BY MAX(captured_at) DESC 
+		LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+
+		}
+	}(rows)
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
 }
 
 func (r *Repository) Cleanup(ctx context.Context, retentionHours, maxMessages int) error {
