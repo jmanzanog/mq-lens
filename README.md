@@ -104,6 +104,29 @@ Build one binary with embedded UI:
 make build
 ```
 
+## Container Publishing
+
+Every commit pushed to `main` publishes a Docker image to GitHub Container Registry:
+
+```text
+ghcr.io/<owner>/mq-lens:<YYYY.MM.DD.N>
+```
+
+Example:
+
+```text
+ghcr.io/jmanzanog/mq-lens:2026.06.02.1
+```
+
+The workflow also publishes:
+
+```text
+ghcr.io/<owner>/mq-lens:main
+ghcr.io/<owner>/mq-lens:sha-<short-commit-sha>
+```
+
+The daily counter is calculated from existing GHCR tags for the same date, so the next successful publish on the same UTC day increments the final number.
+
 ## Dev Tools
 
 Local message sending is disabled unless explicitly enabled:
