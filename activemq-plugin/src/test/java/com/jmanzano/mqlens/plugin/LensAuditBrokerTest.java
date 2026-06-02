@@ -43,9 +43,9 @@ public class LensAuditBrokerTest {
 
         // Verify audit message is sent
         ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
-        verify(mockNext).send(any(ProducerBrokerExchange.class), messageCaptor.capture());
+        verify(mockNext, times(2)).send(any(ProducerBrokerExchange.class), messageCaptor.capture());
 
-        org.apache.activemq.command.ActiveMQTextMessage captured = (org.apache.activemq.command.ActiveMQTextMessage) messageCaptor.getValue();
+        org.apache.activemq.command.ActiveMQTextMessage captured = (org.apache.activemq.command.ActiveMQTextMessage) messageCaptor.getAllValues().get(1);
         
         assertEquals("BUSINESS.QUEUE", captured.getProperty("LENS_OriginalDestination"));
         assertEquals("Queue", captured.getProperty("LENS_DestinationType"));

@@ -58,6 +58,13 @@ secrets.yml
 .classpath
 .settings/
 
+# ---------- Java / Maven ----------
+target/
+*.jar
+*.war
+*.ear
+*.class
+
 # ---------- OS ----------
 .DS_Store
 .DS_Store?
