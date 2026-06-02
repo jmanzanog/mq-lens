@@ -1,0 +1,322 @@
+:root {
+  font-family: "Aptos", "Segoe UI", sans-serif;
+  color: #17201b;
+  background: #eef1ec;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  border: 1px solid #9aa59b;
+  background: #f7f8f3;
+  color: #17201b;
+  border-radius: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+select,
+textarea {
+  font: inherit;
+  border: 1px solid #9aa59b;
+  border-radius: 6px;
+  background: #fbfcf8;
+  color: #17201b;
+}
+
+select {
+  min-height: 38px;
+  padding: 0 10px;
+}
+
+textarea {
+  width: 100%;
+  min-height: 112px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+button:hover,
+button.active {
+  background: #17201b;
+  color: #f7f8f3;
+}
+
+.shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 248px 1fr;
+}
+
+.sidebar {
+  background: #17201b;
+  color: #f7f8f3;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.sidebar h1,
+.topbar h2 {
+  margin: 0;
+  font-size: 30px;
+  letter-spacing: 0;
+  text-transform: capitalize;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: #7ea37b;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+nav {
+  display: grid;
+  gap: 8px;
+  margin-top: 40px;
+}
+
+nav button {
+  width: 100%;
+  text-align: left;
+}
+
+.status-block {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.status-block small {
+  display: block;
+  color: #bcc7bd;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #c55d4b;
+}
+
+.dot.ok {
+  background: #7ea37b;
+}
+
+.workspace {
+  padding: 24px;
+  overflow: hidden;
+}
+
+.topbar {
+  min-height: 72px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #cdd4cb;
+  margin-bottom: 20px;
+}
+
+.actions,
+.message-tools {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.icon-button {
+  width: 38px;
+  padding: 0;
+}
+
+.toggle {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.event-status {
+  color: #667266;
+  font-size: 13px;
+}
+
+.notice {
+  padding: 12px;
+  border: 1px solid #c55d4b;
+  background: #fff2ee;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.metrics article,
+.panel {
+  background: #fbfcf8;
+  border: 1px solid #cdd4cb;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.metrics span {
+  color: #667266;
+  font-size: 13px;
+}
+
+.metrics strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 32px;
+}
+
+.split,
+.message-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.9fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.message-layout {
+  align-items: start;
+}
+
+.table-wrap {
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th,
+td {
+  text-align: left;
+  border-bottom: 1px solid #dfe4dc;
+  padding: 10px;
+  white-space: nowrap;
+}
+
+tbody tr {
+  cursor: pointer;
+}
+
+tbody tr:hover {
+  background: #eef1ec;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 10px;
+}
+
+dt {
+  color: #667266;
+}
+
+dd {
+  margin: 0;
+}
+
+.message-tools {
+  margin-bottom: 12px;
+}
+
+.message-tools input {
+  min-height: 38px;
+  min-width: 280px;
+  border: 1px solid #9aa59b;
+  border-radius: 6px;
+  padding: 0 12px;
+  background: #fbfcf8;
+}
+
+.dev-send {
+  display: grid;
+  gap: 10px;
+  max-width: 680px;
+}
+
+.detail {
+  max-height: calc(100vh - 170px);
+  overflow: auto;
+}
+
+.muted {
+  color: #667266;
+}
+
+.badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.badges span {
+  border: 1px solid #9aa59b;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+pre {
+  max-width: 100%;
+  overflow: auto;
+  background: #17201b;
+  color: #e7eee4;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.graph-panel {
+  min-height: 620px;
+}
+
+.cy-graph {
+  width: 100%;
+  height: min(68vh, 620px);
+  min-height: 520px;
+}
+
+@media (max-width: 820px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    min-height: auto;
+    gap: 20px;
+  }
+
+  .metrics,
+  .split,
+  .message-layout {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,73 @@
+# ---------- Build artifacts ----------
+/mq-lens
+/mq-lens-*
+/bin/
+
+# ---------- Go ----------
+# Test / coverage
+*.test
+*.out
+coverage.html
+coverage.txt
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Generated docs / profiling
+*.pprof
+
+# ---------- Frontend (web/) ----------
+/web/node_modules/
+/web/dist/
+/web/.svelte-kit/
+/web/.vite/
+/web/.cache/
+/web/.env
+/web/.env.*
+!/web/.env.example
+
+# ---------- Runtime / local data ----------
+/data/
+/tmp/
+/logs/
+*.log
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ---------- Secrets / local config ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.yaml
+secrets.yml
+
+# ---------- Editors / IDEs ----------
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ---------- OS ----------
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ---------- Docker ----------
+# Anything that looks like a bind-mount or volume data
+docker-data/
+*.tar
+*.tar.gz

@@ -1,0 +1,50 @@
+services:
+  activemq:
+    image: apache/activemq-classic:5.19.7
+    container_name: activemq-classic
+    ports:
+      - "127.0.0.1:61616:61616"
+      - "127.0.0.1:61613:61613"
+      - "127.0.0.1:8161:8161"
+    volumes:
+      - ./activemq/conf/activemq.xml:/opt/apache-activemq/conf/activemq.xml:ro
+      - activemq-data:/opt/apache-activemq/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8161/api/jolokia/version"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mq-lens:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mq-lens
+    depends_on:
+      activemq:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8088:8080"
+    environment:
+      LENS_HTTP_ADDR: "0.0.0.0:8080"
+      LENS_MODE: "hybrid"
+      ACTIVEMQ_STOMP_ADDR: "activemq:61613"
+      ACTIVEMQ_STOMP_USER: "admin"
+      ACTIVEMQ_STOMP_PASSWORD: "admin"
+      ACTIVEMQ_JOLOKIA_URL: "http://activemq:8161/api/jolokia"
+      ACTIVEMQ_JOLOKIA_USER: "admin"
+      ACTIVEMQ_JOLOKIA_PASSWORD: "admin"
+      LENS_AUDIT_PREFIX: "LENS.AUDIT."
+      LENS_AUDIT_QUEUES: "ORDER.CREATED,PAYMENT.EVENTS"
+      LENS_ADVISORY_ENABLED: "true"
+      LENS_DB_PATH: "/data/mq-lens.db"
+      LENS_MAX_BODY_BYTES: "262144"
+      LENS_MAX_MESSAGES: "10000"
+      LENS_RETENTION_HOURS: "24"
+      LENS_ENABLE_REDACTION: "true"
+    volumes:
+      - lens-data:/data
+
+volumes:
+  activemq-data:
+  lens-data:

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:amq="http://activemq.apache.org/schema/core"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+         http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd
+         http://activemq.apache.org/schema/core https://activemq.apache.org/schema/core/activemq-core.xsd">
+
+  <broker xmlns="http://activemq.apache.org/schema/core"
+          brokerName="localhost"
+          dataDirectory="${activemq.data}"
+          advisorySupport="true"
+          useJmx="true">
+
+    <destinationInterceptors>
+      <virtualDestinationInterceptor>
+        <virtualDestinations>
+          <compositeQueue name="ORDER.CREATED" forwardOnly="false">
+            <forwardTo>
+              <queue physicalName="LENS.AUDIT.ORDER.CREATED"/>
+            </forwardTo>
+          </compositeQueue>
+          <compositeQueue name="PAYMENT.EVENTS" forwardOnly="false">
+            <forwardTo>
+              <queue physicalName="LENS.AUDIT.PAYMENT.EVENTS"/>
+            </forwardTo>
+          </compositeQueue>
+        </virtualDestinations>
+      </virtualDestinationInterceptor>
+    </destinationInterceptors>
+
+    <persistenceAdapter>
+      <kahaDB directory="${activemq.data}/kahadb"/>
+    </persistenceAdapter>
+
+    <systemUsage>
+      <systemUsage>
+        <memoryUsage>
+          <memoryUsage percentOfJvmHeap="70"/>
+        </memoryUsage>
+        <storeUsage>
+          <storeUsage limit="1 gb"/>
+        </storeUsage>
+        <tempUsage>
+          <tempUsage limit="512 mb"/>
+        </tempUsage>
+      </systemUsage>
+    </systemUsage>
+
+    <transportConnectors>
+      <transportConnector name="openwire" uri="tcp://0.0.0.0:61616?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600"/>
+      <transportConnector name="stomp" uri="stomp://0.0.0.0:61613"/>
+    </transportConnectors>
+  </broker>
+</beans>
