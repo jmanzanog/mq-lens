@@ -46,6 +46,9 @@ func (c *AuditConsumer) Run(ctx context.Context) {
 		return
 	}
 	backoff := c.cfg.STOMPReconnectMin
+	retries := 0
+	const maxInitialRetries = 10
+
 	for {
 		if ctx.Err() != nil {
 			return
@@ -57,8 +60,17 @@ func (c *AuditConsumer) Run(ctx context.Context) {
 		}
 		if connected {
 			backoff = c.cfg.STOMPReconnectMin
+			retries = 0 // Reset retries on successful connection
+		} else {
+			retries++
+			if retries > maxInitialRetries {
+				c.logger.Error("Fail-fast triggered: max STOMP retries reached without successful subscription")
+				c.events.Publish("error", map[string]string{"message": "Fail-fast triggered: max STOMP retries reached without successful subscription"})
+				time.Sleep(100 * time.Millisecond) // Allow event to be flushed
+				panic("Fail-fast triggered: max STOMP retries reached without successful subscription")
+			}
 		}
-		c.logger.Warn("stomp disconnected", "error", err, "retryIn", backoff)
+		c.logger.Warn("stomp disconnected", "error", err, "retryIn", backoff, "retryCount", retries)
 		select {
 		case <-ctx.Done():
 			return

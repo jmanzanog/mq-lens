@@ -58,6 +58,33 @@ public class LensAuditBrokerTest {
     }
 
     @Test
+    public void testAuditCopyHandlesNullProducerState() throws Exception {
+        // Simulate a VirtualTopic dispatch or transaction where the producer state is null
+        ProducerBrokerExchange nullStateExchange = new ProducerBrokerExchange();
+        nullStateExchange.setProducerState(null);
+        
+        org.apache.activemq.command.ActiveMQTextMessage realMessage = new org.apache.activemq.command.ActiveMQTextMessage();
+        realMessage.setDestination(new ActiveMQQueue("VirtualTopic.CustomerOnboardedEvent"));
+        realMessage.setText("payload");
+        realMessage.setMessageId(new MessageId("ID:test:2:1:1"));
+
+        auditBroker.send(nullStateExchange, realMessage);
+
+        ArgumentCaptor<ProducerBrokerExchange> exchangeCaptor = ArgumentCaptor.forClass(ProducerBrokerExchange.class);
+        ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
+        
+        // Should succeed without throwing JMSException "invalid (null) producer state"
+        verify(mockNext, times(2)).send(exchangeCaptor.capture(), messageCaptor.capture());
+        
+        ProducerBrokerExchange capturedExchange = exchangeCaptor.getAllValues().get(1);
+        assertNotNull(capturedExchange.getProducerState(), "Audit exchange should have a ProducerState");
+        assertEquals("LensAuditPlugin", capturedExchange.getProducerState().getInfo().getProducerId().getConnectionId().substring(0, 15));
+
+        Message capturedMessage = messageCaptor.getAllValues().get(1);
+        assertEquals("VirtualTopic.CustomerOnboardedEvent", capturedMessage.getProperty("LENS_OriginalDestination"));
+    }
+
+    @Test
     public void testAntiLoop() throws Exception {
         Message mockMessage = mock(Message.class);
         ActiveMQQueue originalDest = new ActiveMQQueue("LENS.AUDIT.ALL");
