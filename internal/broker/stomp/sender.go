@@ -37,7 +37,7 @@ func SendTestMessage(ctx context.Context, cfg config.Config, request SendRequest
 	if err != nil {
 		return err
 	}
-	defer conn.Disconnect()
+	defer func() { _ = conn.Disconnect() }()
 
 	done := make(chan error, 1)
 	go func() {

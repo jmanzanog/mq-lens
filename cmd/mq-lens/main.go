@@ -26,7 +26,11 @@ func main() {
 		logger.Error("initialize app", "error", err)
 		os.Exit(1)
 	}
-	defer application.Close()
+	defer func() {
+		if err := application.Close(); err != nil {
+			logger.Error("close app", "error", err)
+		}
+	}()
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,

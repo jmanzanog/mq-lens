@@ -25,7 +25,7 @@ func TestTopologyIncludesAuditEdges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error=%v", err)
 	}
-	defer application.Close()
+	defer func() { _ = application.Close() }()
 
 	application.mu.Lock()
 	application.snapshot = domain.BrokerSnapshot{
@@ -57,7 +57,7 @@ func TestTopologyNormalizesPrefixedAuditQueues(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error=%v", err)
 	}
-	defer application.Close()
+	defer func() { _ = application.Close() }()
 
 	topology := application.Topology()
 	if !hasEdge(topology, "queue:ORDER.CREATED", "queue:LENS.AUDIT.ORDER.CREATED", "audit-copy") {
@@ -83,7 +83,7 @@ func TestRefreshSnapshotPreservesLastGoodSnapshotOnJolokiaError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error=%v", err)
 	}
-	defer application.Close()
+	defer func() { _ = application.Close() }()
 	application.jolokia = jolokia.NewWithHTTPClient("http://jolokia", "", "", client)
 
 	application.refreshSnapshot(context.Background())

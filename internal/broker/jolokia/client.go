@@ -109,7 +109,7 @@ func (c *Client) read(ctx context.Context, mbean string) (response, error) {
 	if err != nil {
 		return response{}, err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode >= 400 {
 		return response{}, fmt.Errorf("jolokia returned %s", res.Status)
 	}

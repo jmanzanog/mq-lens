@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/jmanzano/mq-lens/internal/domain"
 )
 
 func TestSnapshotParsesBrokerAndDestinations(t *testing.T) {
@@ -47,10 +49,15 @@ func TestSnapshotReturnsUnavailableOnHTTPError(t *testing.T) {
 		return testResponse(http.StatusServiceUnavailable, "nope"), nil
 	})}
 
-	snapshot, err := NewWithHTTPClient("http://jolokia", "", "", client).Snapshot(context.Background())
+	c := NewWithHTTPClient("http://jolokia", "", "", client)
+	snapshot, err := c.Snapshot(context.Background())
 	if err == nil {
 		t.Fatalf("expected error")
 	}
+	assertSnapshotUnavailable(t, snapshot)
+}
+
+func assertSnapshotUnavailable(t *testing.T, snapshot domain.BrokerSnapshot) {
 	if snapshot.Available {
 		t.Fatalf("snapshot should be unavailable")
 	}

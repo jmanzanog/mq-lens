@@ -76,7 +76,7 @@ func (c *AuditConsumer) runOnce(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer conn.Disconnect()
+	defer func() { _ = conn.Disconnect() }()
 	c.setConnected(true)
 	c.logger.Info("stomp connected", "addr", c.cfg.STOMPAddr)
 

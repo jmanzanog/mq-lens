@@ -58,7 +58,7 @@ func (m *Monitor) runOnce(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer conn.Disconnect()
+	defer func() { _ = conn.Disconnect() }()
 
 	for _, topic := range m.cfg.AdvisoryTopics {
 		destination := brokerstomp.STOMPDestination(domain.DestinationTopic, topic)

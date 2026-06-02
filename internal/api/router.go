@@ -61,11 +61,11 @@ func New(cfg config.Config, store Store, status StatusProvider, events *stream.B
 	return r
 }
 
-func (r *Router) health(w http.ResponseWriter, req *http.Request) {
+func (r *Router) health(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, r.status.Health())
 }
 
-func (r *Router) brokerStatus(w http.ResponseWriter, req *http.Request) {
+func (r *Router) brokerStatus(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, r.status.Snapshot())
 }
 
@@ -109,7 +109,7 @@ func (r *Router) destination(w http.ResponseWriter, req *http.Request) {
 	writeError(w, http.StatusNotFound, "destination not found")
 }
 
-func (r *Router) topology(w http.ResponseWriter, req *http.Request) {
+func (r *Router) topology(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, r.status.Topology())
 }
 

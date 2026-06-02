@@ -204,7 +204,7 @@ func (r *Repository) ListMessages(ctx context.Context, filter domain.MessageFilt
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var messages []domain.CapturedMessage
 	for rows.Next() {
 		message, err := scanMessage(rows)
@@ -328,7 +328,7 @@ func (r *Repository) loadKeyValues(ctx context.Context, table, messageID string)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	values := map[string]string{}
 	for rows.Next() {
 		var key string

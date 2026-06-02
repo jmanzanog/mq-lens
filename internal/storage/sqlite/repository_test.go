@@ -14,7 +14,7 @@ func TestRepositorySaveAndGetMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open() error=%v", err)
 	}
-	defer repo.Close()
+	defer func() { _ = repo.Close() }()
 
 	want := domain.CapturedMessage{
 		ID:                  "msg-1",
