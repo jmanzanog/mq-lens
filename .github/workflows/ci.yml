@@ -33,6 +33,10 @@ jobs:
         working-directory: web
         run: npm run build
 
+      - name: Test frontend
+        working-directory: web
+        run: npm test
+
       - name: Embed frontend build
         run: |
           rm -rf internal/ui/dist

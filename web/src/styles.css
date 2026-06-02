@@ -229,6 +229,7 @@ td {
   border-bottom: 1px solid #dfe4dc;
   padding: 10px;
   white-space: nowrap;
+  transition: background-color 200ms ease;
 }
 
 tbody tr {
@@ -389,5 +390,12 @@ pre {
   .message-layout,
   .trace-layout {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  th,
+  td {
+    transition: none;
   }
 }

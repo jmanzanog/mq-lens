@@ -11,5 +11,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true
+  },
+  test: {
+    include: ['src/**/*.test.ts'],
+    environment: 'node'
   }
 });

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
+    "test": "vitest run",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
@@ -15,5 +16,7 @@
     "typescript": "^5.9.3",
     "vite": "^7.1.12"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "vitest": "^4.1.8"
+  }
 }

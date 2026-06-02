@@ -1,10 +1,10 @@
 <script lang="ts">
   import cytoscape, { type Core, type ElementDefinition } from 'cytoscape';
   import { api } from './lib/api';
+  import { sortDestinations } from './lib/destinations';
   import { connectEvents } from './lib/events';
+  import { cleanupForView, type View } from './lib/navigation';
   import type { BrokerSnapshot, CapturedMessage, DestinationSnapshot, Health, Topology } from './lib/types';
-
-  type View = 'dashboard' | 'destinations' | 'messages' | 'traces' | 'topology' | 'settings';
 
   let view = $state<View>('dashboard');
   let health = $state<Health | null>(null);
@@ -26,13 +26,22 @@
   let topologyElement = $state<HTMLDivElement | null>(null);
   let topologyInstance: Core | null = null;
 
+  function navigateTo(target: View) {
+    if (target === view) return;
+    const resets = cleanupForView(view);
+    if ('selected' in resets) selected = null;
+    if ('traceMessages' in resets) { traceMessages = []; traceCorrelationId = ''; }
+    view = target;
+  }
+
   type GraphNode = Topology['nodes'][number];
   type GraphEdge = Topology['edges'][number];
 
-  const queueCount = $derived(destinations.filter((item) => item.type === 'queue').length);
-  const topicCount = $derived(destinations.filter((item) => item.type === 'topic').length);
-  const consumerCount = $derived(destinations.reduce((sum, item) => sum + item.consumerCount, 0));
-  const producerCount = $derived(destinations.reduce((sum, item) => sum + item.producerCount, 0));
+  const sortedDestinations = $derived(sortDestinations(destinations));
+  const queueCount = $derived(sortedDestinations.filter((item) => item.type === 'queue').length);
+  const topicCount = $derived(sortedDestinations.filter((item) => item.type === 'topic').length);
+  const consumerCount = $derived(sortedDestinations.reduce((sum, item) => sum + item.consumerCount, 0));
+  const producerCount = $derived(sortedDestinations.reduce((sum, item) => sum + item.producerCount, 0));
 
   async function refresh() {
     try {
@@ -61,11 +70,14 @@
     }
   }
 
+  // Intentionally bypasses navigateTo: we want to keep current view state (e.g. selected)
+  // when the user clicks a message from dashboard or traces to view its detail.
   async function openMessage(id: string) {
     selected = await api.message(id);
     view = 'messages';
   }
 
+  // Intentionally bypasses navigateTo: sets trace state before switching view.
   async function loadTrace(correlationId: string) {
     const id = correlationId.trim();
     if (!id) return;
@@ -113,13 +125,6 @@
       window.clearInterval(timer);
       source.close();
     };
-  });
-
-  $effect(() => {
-    if (view !== 'traces') {
-      traceMessages = [];
-      traceCorrelationId = '';
-    }
   });
 
   $effect(() => {
@@ -406,12 +411,12 @@
       <h1>MQ Lens</h1>
     </div>
     <nav>
-      <button class:active={view === 'dashboard'} onclick={() => (view = 'dashboard')}>Dashboard</button>
-      <button class:active={view === 'destinations'} onclick={() => (view = 'destinations')}>Destinations</button>
-      <button class:active={view === 'messages'} onclick={() => (view = 'messages')}>Messages</button>
-      <button class:active={view === 'traces'} onclick={() => (view = 'traces')}>Traces</button>
-      <button class:active={view === 'topology'} onclick={() => (view = 'topology')}>Topology</button>
-      <button class:active={view === 'settings'} onclick={() => (view = 'settings')}>Settings</button>
+      <button class:active={view === 'dashboard'} onclick={() => navigateTo('dashboard')}>Dashboard</button>
+      <button class:active={view === 'destinations'} onclick={() => navigateTo('destinations')}>Destinations</button>
+      <button class:active={view === 'messages'} onclick={() => navigateTo('messages')}>Messages</button>
+      <button class:active={view === 'traces'} onclick={() => navigateTo('traces')}>Traces</button>
+      <button class:active={view === 'topology'} onclick={() => navigateTo('topology')}>Topology</button>
+      <button class:active={view === 'settings'} onclick={() => navigateTo('settings')}>Settings</button>
     </nav>
     <div class="status-block">
       <span class:ok={health?.brokerConnected} class="dot"></span>
@@ -464,13 +469,13 @@
         </div>
       </section>
     {:else if view === 'destinations'}
-      {@render DestinationTable(destinations)}
+      {@render DestinationTable(sortedDestinations)}
     {:else if view === 'messages'}
       <section class="message-tools">
         <input placeholder="Search body" bind:value={query} onkeydown={(event) => event.key === 'Enter' && refresh()} />
         <select bind:value={destinationFilter} onchange={refresh} aria-label="Destination filter">
           <option value="">All destinations</option>
-          {#each destinations as destination (`filter:${destination.type}:${destination.name}`)}
+          {#each sortedDestinations as destination (`filter:${destination.type}:${destination.name}`)}
             <option value={destination.name}>{destination.name}</option>
           {/each}
         </select>
